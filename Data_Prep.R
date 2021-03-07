@@ -5,7 +5,7 @@
 # reef fish occurrence records, and bottom water conditions. 
 
 # working directories
-setwd("Z:/Courtney/Stuart_MSc_Ch1/")
+setwd("Z:/Courtney/Stuart_MSc_Ch1/") # main project folder
 temp_wd = "Z:/Courtney/Stuart_MSc_Ch1/Temp/" # temporary files
 source_wd = "Z:/Courtney/Stuart_MSc_Ch1/Source_Data/" # source data
 dem_wd = "Z:/Courtney/Stuart_MSc_Ch1/Source_Data/Job606638_ncei_nintharcsec_dem/" # DEMs
@@ -68,7 +68,7 @@ fill_gaps = data.frame(
   dplyr::summarise(geometry = st_combine(geometry)) %>%
   st_cast("POLYGON")
 
-# take a look out now
+# take a look now
 tm_shape(bnp) +
   tm_fill("navy") +
   tm_shape(fknms) +
@@ -76,15 +76,15 @@ tm_shape(bnp) +
   tm_shape(fill_gaps) +
   tm_fill("orange")
 
-# union the parks and gap fill data to produce on complete polygon
+# union the parks and gap fill data to produce one complete polygon
 parks_union = st_union(fknms, bnp)
 parks_union = st_union(parks_union, fill_gaps)
 
-# we have an outline now, so remove temporary data
+# have an outline now of the parks' outer borders, so remove temporary data
 rm(list = c("fknms", "bnp", "nps", "fill_gaps"))
 
 # make simple polygon feature for clipping out the training area 
-# (constrained by Tavernier Creek to the southwest, & Key Biscayne to the northeast)
+# (constrained by Tavernier Creek to the southwest & Key Biscayne to the northeast)
 train_poly = data.frame(
   lon = c(236904.809, 275906.500, 308636.563, 272163.225), # bbox values in meters
   lat = c(78590.323, 159992.442, 142403.545, 62074.390)) %>%
@@ -92,9 +92,23 @@ train_poly = data.frame(
   dplyr::summarise(geometry = st_combine(geometry)) %>%
   st_cast("POLYGON")
 
-# clip geometry to training and testing areas 
+# make a simple polygon feature for clipping out the testing area 
+# (Tavernier Creek to the northeast & Cudjoe Key to the southwest)
+test_poly = data.frame(
+  lon = c(149311.942, 244481.888, 250880.718, 250698.734, 149245.026), # bbox values in meters
+  lat = c(75028.405, 75041.028, 72043.654, 20743.032, 20841.839)) %>%
+  st_as_sf(coords = c("lon", "lat"), crs = my_crs) %>%
+  dplyr::summarise(geometry = st_combine(geometry)) %>%
+  st_cast("POLYGON")
+
+# clip marine parks geometry to training and testing areas 
 parks_train = st_intersection(train_poly, parks_union)
-parks_test = st_difference(parks_union, train_poly)
+parks_test = st_intersection(test_poly, parks_union)
+
+tm_shape(parks_train) +
+  tm_fill("navy") +
+  tm_shape(parks_test) +
+  tm_fill("gray")
 
 st_write(parks_train, paste0(temp_wd, "parks_train.shp"))
 st_write(parks_test, paste0(temp_wd, "parks_test.shp"))
@@ -129,6 +143,7 @@ write.csv(ClassLv1_df, paste0(csv_wd, "URM_ClassLv1_IDs.csv"), row.names = F) # 
 reef_train = st_intersection(st_make_valid(reef_map), parks_train)
 reef_test = st_intersection(st_make_valid(reef_map), parks_test)
 
+# save for mapping
 # ignore warnings about abbreviating field names and having too many decimals in the field "Shp_Ar", that's OK
 st_write(reef_train, dsn = paste0(train_wd, "GIS/Reef_Train.shp"), driver = "ESRI Shapefile", append = F)
 st_write(reef_test, dsn = paste0(test_wd, "GIS/Reef_Test.shp"), driver = "ESRI Shapefile", append = F)
@@ -136,7 +151,7 @@ st_write(reef_test, dsn = paste0(test_wd, "GIS/Reef_Test.shp"), driver = "ESRI S
 # create a palette for plotting benthic habitat classes
 pal = pnw_palette("Bay", 14, type = "continuous") 
 
-# mangrove data
+# supplementary shoreline mangrove habitat data
 mg_shore = 
   st_read(dsn = paste0(source_wd, "Mangrove_Habitat/Mangrove_Habitat_in_Florida.shp")) %>%
   filter(!st_is_empty(.)) %>%
@@ -149,9 +164,6 @@ compareCRS(mg_shore, my_crs)
 # imagery) add a 10 m buffer around the mangrove data and then use gDifference to keep only
 # the non-overlapping areas (AKA, respect the boundaries of the reef map).
 mg_buff = st_buffer(mg_shore, dist = 10)
-
-mg_buff_train = st_intersection(mg_buff, parks_train)
-mg_buff_test = st_intersection(mg_buff, parks_test)
 
 # now keep only the non-overlapping regions of the mangrove data (FYI: time-consuming step)
 mg_train = rgeos::gDifference(as_Spatial(st_intersection(mg_buff, parks_train)),
@@ -170,6 +182,7 @@ mg_train$ClassLv1_ID = rep(as.integer(11), nrow(mg_train))
 mg_test$ClassLv1 = rep(as.character("Mangrove"), nrow(mg_test))
 mg_test$ClassLv1_ID = rep(as.integer(11), nrow(mg_test))
 
+# save for mapping
 st_write(mg_train, dsn = paste0(train_wd, "GIS/Mangrove_Train.shp"), 
          driver = "ESRI Shapefile", append = F)
 st_write(mg_test, dsn = paste0(test_wd, "GIS/Mangrove_Test.shp"), 
@@ -221,7 +234,8 @@ hab_test_ras = writeRaster((fasterize(hab_test, test_ras, field = "ClassLv1_ID",
 plot(hab_test_ras, col = pal)
 
 # remove temporary files 
-rm(list = c("train_ras", "test_ras", "reef_map", "reef_train", "reef_test", "fgdb", "mg_buff", "mg_buff_train", "mg_buff_test", "mg_shore", "mg_train", "mg_test")) 
+rm(list = c("reef_map", "reef_train", "reef_test", "fgdb", "mg_buff", 
+            "mg_buff_train", "mg_buff_test", "mg_shore", "mg_train", "mg_test")) 
 
 # load Continuously Updated DEM - 1/9 Arc-Second Resolution Bathymetric-Topographic Tiles  from NOAA-NCEI
 # (https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.ngdc.mgg.dem:999919)
@@ -249,7 +263,7 @@ crs(template) = template_crs
 writeRaster(template, file = file.path(temp_wd, "dem_mosaic.tif"), format = "GTiff",
             overwrite = T)
 
-# mosaic tiles and save them to the template raster
+# mosaic tiles and save them to the empty template raster
 gdalUtils::mosaic_rasters(gdalfile = dems, dst_dataset = file.path(temp_wd, "dem_mosaic.tif"),
                           of = "GTiff", overwrite = T)
 
@@ -279,7 +293,9 @@ writeRaster(dem_proj, paste0(dem_wd, "Full_Mosaic_DEM.tif"), format = "GTiff",
 
 pal2 = pnw_palette("Winter", n = 100, "continuous") # palette for plotting depth
 plot(dem_proj, col = pal2)
-rm(list = c("dems", "e", "template", "template_crs")) # remove temporary products
+
+# remove temporary products
+rm(list = c("dems", "e", "template", "template_crs")) 
 
 # back to normal working directory
 setwd("Z:/Courtney/Stuart_MSc_Ch1/")
@@ -350,10 +366,22 @@ dem_crop_hab_test = writeRaster((raster::crop(dem_proj, hab_test_ras)),
                                 file = file.path(temp_wd, "dem_crop_hab_test.tif"), 
                                 format = "GTiff", overwrite = T)
 extent(hab_test_crop_dem) = extent(dem_crop_hab_test) # match extents
-habitat_test = raster::mask(hab_test_crop_dem, dem_crop_hab_test) # habitat data within DEM extent
-depth_test = raster::mask(dem_crop_hab_test, hab_test_crop_dem) # depth data matching habitat extent
+crs(hab_test_crop_dem) = my_crs
+crs(dem_crop_hab_test) = my_crs
+
+# write out data - need to use ArcGIS' Benthic Terrain Modeler extension to calculate seascape topography 
+# metrics from the depth raster; MaxEnt requires ascii format
+habitat_test = writeRaster((raster::mask(hab_test_crop_dem, dem_crop_hab_test)),
+                           file = file.path(test_wd, "Environmental/Habitat.asc"),
+                           format = "ascii", overwrite = T)# habitat data within DEM extent
+depth_test = writeRaster((raster::mask(dem_crop_hab_test, hab_test_crop_dem)),
+                         file = file.path(test_wd, "Environmental/Depth.asc"),
+                         format = "ascii", overwrite = T)# depth data matching habitat extent
 extent(habitat_test) = extent(depth_test)
 compareRaster(depth_test, habitat_test, extent = T, res = T, crs = T, rowcol = T)
+writeRaster(((habitat_test * 0) + 1), file = file.path(temp_wd, "simp_test.tif"), 
+            format = "GTiff", overwrite = T)
+
 
 # should overlap perfectly 
 tm_shape(depth_test) +
@@ -361,16 +389,6 @@ tm_shape(depth_test) +
   tm_shape(habitat_test) +
   tm_raster(palette = pal) +
   tm_layout(frame = F)
-
-# write out data - need to use ArcGIS' Benthic Terrain Modeler extension to calculate seascape topography 
-# metrics from the depth raster; MaxEnt requires ascii format
-#writeRaster(depth_test, file = file.path(test_wd, "Environmental/depth.tif"), format = "GTiff", overwrite = T)
-writeRaster(habitat_test, file = file.path(test_wd, "Environmental/Habitat.asc"), 
-            format = "ascii", overwrite = T)
-writeRaster(((habitat_test * 0) + 1), file = file.path(temp_wd, "simp_test.tif"), 
-            format = "GTiff", overwrite = T)
-writeRaster(depth_test, file = file.path(test_wd, "Environmental/Depth.asc"), 
-            format = "ascii", overwrite = T)
 
 # now convert simple testing raster to simple polygon
 polygonize(srcfile = paste0(temp_wd, "simp_test.tif"), 
@@ -410,7 +428,9 @@ require(rvc)
 rvc = getSampleData(years = c(2014, 2016, 2018), regions = "FLA KEYS")
 head(rvc, 1)
 
-# convert the fork length column (LEN) to total length (TOT_LEN) using FishBase length-length conversion
+# convert the fork length column (LEN) to total length (TOT_LEN) using FishBase 
+# length-length conversion for gray snapper specifically TL = 0 + 1.049 x FL
+# this is temporary, will repeat later for bluestriped grunt using their specific FL-TL conversion)
 rvc = rvc %>% mutate(TOT_LEN = (LEN*1.049)) 
 
 # how many unique sites were sampled in 2014, 2016, and 2018?
@@ -807,6 +827,7 @@ st_write(test_lg_juvenile %>%
 rm(list = c("adult_gray_snapper", "juvenile_gray_snapper", "subadult_gray_snapper"))
 
 #### bluestriped grunts ####
+
 # first convert fork length to total length using the bluestriped grunt
 # length-length conversion from FishBase  TL = 0 + 1.034 x FL
 rvc = rvc %>% mutate(TOT_LEN = (LEN*1.034)) 
@@ -851,7 +872,7 @@ hs_subadult$LIFE_STAGE = rep("SUBADULT", nrow(hs_subadult))
 hs_subadult$PRES = ifelse(hs_subadult$N > 0, 1, 0)
 hs_subadult$SOURCE = rep("REEF VISUAL CENSUS", nrow(hs_subadult))
 
-# now the inferred absences sites (sites where either no gray snapper were seen or only those of another age class were seen)
+# now the inferred absences sites (sites where either no bluestriped grunt were seen or only those of another age class were seen)
 hs_subadult_abs = rvc %>%
   group_by(REGION, STRAT, PRIMARY_SAMPLE_UNIT, STATION_NR, LAT_DEGREES, LON_DEGREES, SPECIES_CD) %>%
   filter(SPECIES_CD == "HAE SCIU" & !(TOT_LEN >= 11.90 & TOT_LEN <= 25.33)) %>% 
@@ -1195,8 +1216,9 @@ sampling_effort_train = full_join(rvc_sites, mg_sites) %>%
   add_column("count" = 1) %>%
   as(., "Spatial")
 
-train_grid = raster(ncol = ncol(habitat_train), nrow = nrow(habitat_train), xmn = xmin(habitat_train), 
-                    xmx = xmax(habitat_train), ymn = ymin(habitat_train), ymx = ymax(habitat_train))
+train_grid = raster(ncol = ncol(habitat_train), nrow = nrow(habitat_train), 
+                    xmn = xmin(habitat_train), xmx = xmax(habitat_train), 
+                    ymn = ymin(habitat_train), ymx = ymax(habitat_train))
 train_grid[] <- rep(1,ncell(train_grid))
 train_bw = choose_bw(sampling_effort_train)
 
@@ -1210,6 +1232,14 @@ compareRaster(train_kde, habitat_train, extent = T, crs = T, rowcol = T)
 tm_shape(train_kde) + tm_raster(n = 5, palette = "-RdBu") #+ tm_shape(sampling_effort_train) + tm_dots(size = 0.01)
 writeRaster(train_kde, filename = paste0(train_wd, "Occurrences/bias.asc"),
             format = "ascii", overwrite = T)
+
+# free up some space
+rm(list = c("train_lg_adult", "train_lg_subadult", "train_lg_juvenile",
+            "test_lg_adult", "test_lg_subadult", "test_lg_juvenile",
+            "train_hs_adult", "train_hs_subadult", "train_hs_juvenile",
+            "test_hs_adult", "test_hs_subadult", "test_hs_juvenile",
+            "rvc", "mg", "rvc_sites", "mg_sites", "lg_mg", "lg_rvc",
+            "hs_mg", "hs_rvc", "mg_euc_train", "mg_euc_test", "train_kde"))
 
 #### WATER QUALITY DATA ####
 libraries("sp", "tibble", "ncf", "spdep", "gstat", "geoR", "readxl", "tidyr")
@@ -1266,6 +1296,7 @@ winter_wq_sp = winter_wq %>% st_drop_geometry()
 coordinates(winter_wq_sp) = ~ LON_M + LAT_M
 proj4string(winter_wq_sp) = proj4string(my_crs) # use my_crs CRS object to define proj4 string of the SPDF
 summary(winter_wq_sp)
+write.csv(winter_wq_sp, paste0(csv_wd, "Winter_Water_Conditions.csv"))
 
 # first taking a glimpse at correlograms and the Moran's I values for the data to ensure that there is spatial dependence
 winter_coords = cbind(winter_wq_sp$LON_M, winter_wq_sp$LAT_M) # calculate a distance matrix
@@ -1349,6 +1380,7 @@ summer_wq_sp = summer_wq %>% st_drop_geometry()
 coordinates(summer_wq_sp) = ~ LON_M + LAT_M
 proj4string(summer_wq_sp) = proj4string(my_crs) # use my_crs CRS object to define proj4 string of the SPDF
 summary(summer_wq_sp)
+write.csv(summer_wq_sp, paste0(csv_wd, "Summer_Water_Conditions.csv"))
 
 # first taking a glimpse at correlograms and the Moran's I values for the data to ensure that there is spatial dependence
 summer_coords = cbind(summer_wq_sp$LON_M, summer_wq_sp$LAT_M) #calculate a distance matrix
@@ -1410,30 +1442,31 @@ s_do_svgm_plot
 print(s_do_fvgm)
 
 #### KRIGING: TRAINING AREA ####
-# habitat raster as a guide for kriging
-# here it is if you need to reload it
+# prediction grid (based on habitat raster, here it is if you need to reload)
 # habitat_train = raster(paste0(train_wd, "Environmental/Habitat.asc")) 
 # crs(habitat_train) = my_crs
 
-# prediction grid
-train_grid = raster(ncol = ncol(habitat_train), nrow = nrow(habitat_train), xmn = xmin(habitat_train), 
-                    xmx = xmax(habitat_train), ymn = ymin(habitat_train), ymx = ymax(habitat_train))
-train_grid = as(train_grid, "SpatialPixels") # convert to spatial pixels object
+train_grid = raster(ncol = ncol(habitat_train), 
+                    nrow = nrow(habitat_train),
+                    xmn = xmin(habitat_train),
+                    xmx = xmax(habitat_train),
+                    ymn = ymin(habitat_train), 
+                    ymx = ymax(habitat_train)) %>%
+  as(., "SpatialPixels")
 proj4string(train_grid) = proj4string(my_crs) # assign projection 
 
 # ordinary kriging (running in parallel) using empirical semivariograms calculated above
 # starting with winter conditions in the training area
 
 #### winter temperature ####
-#Calculate the number of cores
-library(doParallel)
+# Calculate the number of cores
 no_cores = detectCores() - 2
 
 # Initiate cluster 
 cl = makeCluster(no_cores)
 
+# split training area into pieces for each core
 train_parts = split(x = 1:length(train_grid), f = 1:no_cores)
-
 clusterExport(cl = cl, varlist = c("winter_wq_sp", "train_grid", "train_parts", "w_temp_fvgm"),
               envir = .GlobalEnv)
 clusterEvalQ(cl = cl, expr = c(library('sp'), library('gstat')))
@@ -1449,7 +1482,7 @@ for (j in 3:length(w_temp_train_par)) {
 }
 w_temp_train_merge = SpatialPixelsDataFrame(points = w_temp_train_merge, data = w_temp_train_merge@data)
 
-# save data
+# save the new surface
 summary(w_temp_train_merge)
 writeGDAL(w_temp_train_merge["var1.pred"], fname = paste0(temp_wd, "mean_win_temp_train.tif"),
           drivername = "GTiff", type = "Float32")
@@ -1478,7 +1511,7 @@ for (j in 3:length(w_sal_train_par)) {
 }
 w_sal_train_merge = SpatialPixelsDataFrame(points = w_sal_train_merge, data = w_sal_train_merge@data)
 
-# save data
+# save the new surface
 summary(w_sal_train_merge)
 writeGDAL(w_sal_train_merge["var1.pred"], fname = paste0(temp_wd, "mean_win_sal_train.tif"),
           drivername = "GTiff", type = "Float32")
@@ -1507,7 +1540,7 @@ for (j in 3:length(w_do_train_par)) {
 }
 w_do_train_merge = SpatialPixelsDataFrame(points = w_do_train_merge, data = w_do_train_merge@data)
 
-# save data
+# save the new surface
 summary(w_do_train_merge)
 writeGDAL(w_do_train_merge["var1.pred"], fname = paste0(temp_wd, "mean_win_do_train.tif"),
           drivername = "GTiff", type = "Float32")
@@ -1536,7 +1569,7 @@ for (j in 3:length(s_temp_train_par)) {
 }
 s_temp_train_merge = SpatialPixelsDataFrame(points = s_temp_train_merge, data = s_temp_train_merge@data)
 
-# save data
+# save the new surface
 summary(s_temp_train_merge)
 writeGDAL(s_temp_train_merge["var1.pred"], fname = paste0(temp_wd, "mean_sum_temp_train.tif"),
           drivername = "GTiff", type = "Float32")
@@ -1565,7 +1598,7 @@ for (j in 3:length(s_sal_train_par)) {
 }
 s_sal_train_merge = SpatialPixelsDataFrame(points = s_sal_train_merge, data = s_sal_train_merge@data)
 
-# save data
+# save the new surface
 summary(s_sal_train_merge)
 writeGDAL(s_sal_train_merge["var1.pred"], fname = paste0(temp_wd, "mean_sum_sal_train.tif"),
           drivername = "GTiff", type = "Float32")
@@ -1594,7 +1627,7 @@ for (j in 3:length(s_do_train_par)) {
 }
 s_do_train_merge = SpatialPixelsDataFrame(points = s_do_train_merge, data = s_do_train_merge@data)
 
-# save data
+# save the new surface
 summary(s_do_train_merge)
 writeGDAL(s_do_train_merge["var1.pred"], fname = paste0(temp_wd, "mean_sum_do_train.tif"),
           drivername = "GTiff", type = "Float32")
@@ -1609,22 +1642,28 @@ showConnections()
 # remove the large training area grids before moving onto the testing area
 rm(list = c("habitat_train", "train_grid", "train_parts"))
 
+
 #### KRIGING: TESTING AREA ####
 # habitat raster as a guide for kriging
 # here it is if you need to reload it
-# habitat_test = raster(paste0(test_wd, "Environmental/Habitat.asc")) 
-# crs(habitat_test) = my_crs
+habitat_test = raster(paste0(test_wd, "Environmental/Habitat.asc")) 
+crs(habitat_test) = my_crs
 
-# prediction grid
-test_grid = raster(ncol = ncol(habitat_test), nrow = nrow(habitat_test), xmn = xmin(habitat_test), 
-                   xmx = xmax(habitat_test), ymn = ymin(habitat_test), ymx = ymax(habitat_test))
-train_grid = as(train_grid, "SpatialPixels") # convert to spatial pixels object
-proj4string(train_grid) = proj4string(my_crs) # assign projection 
+# create prediction grid for testing area
+test_grid = raster(ncol = ncol(habitat_test),
+                   nrow = nrow(habitat_test),
+                   xmn = xmin(habitat_test),
+                   xmx = xmax(habitat_test),
+                   ymn = ymin(habitat_test),
+                   ymx = ymax(habitat_test)) %>%
+  as(., "SpatialPixels")
+proj4string(test_grid) = proj4string(my_crs) # assign projection 
 
 ### winter temperature ####
-# Initiate cluster 
+# initiate cluster 
 cl = makeCluster(no_cores)
 
+# split testing area into pieces for each of the cores
 test_parts = split(x = 1:length(test_grid), f = 1:no_cores)
 
 clusterExport(cl = cl, varlist = c("winter_wq_sp", "test_grid", "test_parts", "w_temp_fvgm"),
@@ -1642,7 +1681,7 @@ for (j in 3:length(w_temp_test_par)) {
 }
 w_temp_test_merge = SpatialPixelsDataFrame(points = w_temp_test_merge, data = w_temp_test_merge@data)
 
-# save data
+# save the new surface
 summary(w_temp_test_merge)
 writeGDAL(w_temp_test_merge["var1.pred"], fname = paste0(temp_wd, "mean_win_temp_test.tif"),
           drivername = "GTiff", type = "Float32")
@@ -1650,7 +1689,7 @@ mean_win_temp_test = raster(paste0(temp_wd, "mean_win_temp_test.tif"))
 mean_win_temp_test = writeRaster(raster::mask(raster::crop(mean_win_temp_test, habitat_test), habitat_test),
                                  file = file.path(test_wd, "Environmental/Mean_Win_Temp.asc"), format = "ascii",
                                  overwrite = T)
-
+compareRaster(mean_win_temp_test, habitat_test, res = T, extent = T, rowcol = T)
 rm(list = c("w_temp_test_merge", "w_temp_test_par", "mean_win_temp_test", "cl"))
 showConnections()
 
@@ -1671,7 +1710,7 @@ for (j in 3:length(w_sal_test_par)) {
 }
 w_sal_test_merge = SpatialPixelsDataFrame(points = w_sal_test_merge, data = w_sal_test_merge@data)
 
-# save data
+# save the new surface
 summary(w_sal_test_merge)
 writeGDAL(w_sal_test_merge["var1.pred"], fname = paste0(temp_wd, "mean_win_sal_test.tif"),
           drivername = "GTiff", type = "Float32")
@@ -1729,7 +1768,7 @@ for (j in 3:length(s_temp_test_par)) {
 }
 s_temp_test_merge = SpatialPixelsDataFrame(points = s_temp_test_merge, data = s_temp_test_merge@data)
 
-# save data
+# save the new surface
 summary(s_temp_test_merge)
 writeGDAL(s_temp_test_merge["var1.pred"], fname = paste0(temp_wd, "mean_sum_temp_test.tif"),
           drivername = "GTiff", type = "Float32")
@@ -1758,7 +1797,7 @@ for (j in 3:length(s_sal_test_par)) {
 }
 s_sal_test_merge = SpatialPixelsDataFrame(points = s_sal_test_merge, data = s_sal_test_merge@data)
 
-# save data
+# save the new surface
 summary(s_sal_test_merge)
 writeGDAL(s_sal_test_merge["var1.pred"], fname = paste0(temp_wd, "mean_sum_sal_test.tif"),
           drivername = "GTiff", type = "Float32")
@@ -1787,7 +1826,7 @@ for (j in 3:length(s_do_test_par)) {
 }
 s_do_test_merge = SpatialPixelsDataFrame(points = s_do_test_merge, data = s_do_test_merge@data)
 
-# save data
+# save the new surface
 summary(s_do_test_merge)
 writeGDAL(s_do_test_merge["var1.pred"], fname = paste0(temp_wd, "mean_sum_do_test.tif"),
           drivername = "GTiff", type = "Float32")
