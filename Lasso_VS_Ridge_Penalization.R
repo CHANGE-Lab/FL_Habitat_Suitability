@@ -29,24 +29,34 @@ lg_train = read.csv(paste0(csv_wd, "Gray_Snapper_Training_Data.csv")) %>%
          BPI_Broad, BPI_Fine, Sum_Temp, Sum_Sal, Win_Sal) %>%
   dplyr::mutate(PRES = as.factor(PRES),
          Habitat = as.factor(Habitat))
+levels(lg_train$PRES) # reverse levels so "PRESENCE" is the "positive" class 
+lg_train$PRES = factor(lg_train$PRES, levels=rev(levels(lg_train$PRES)))
 
 lg_test = read.csv(paste0(csv_wd, "Gray_Snapper_Testing_Data.csv")) %>%
   dplyr::select(PRES, Habitat, Mangrove_Dist, Depth, Slope, Curvature, Rugosity,
          BPI_Broad, BPI_Fine, Sum_Temp, Sum_Sal, Win_Sal) %>%
   dplyr::mutate(PRES = as.factor(PRES),
          Habitat = as.factor(Habitat))
+levels(lg_test$PRES) # reverse levels so "PRESENCE" is the "positive" class 
+lg_test$PRES = factor(lg_test$PRES, levels=rev(levels(lg_test$PRES)))
+
 
 hs_train = read.csv(paste0(csv_wd, "Bluestriped_Grunt_Training_Data.csv"))%>%
   dplyr::select(PRES, Habitat, Mangrove_Dist, Depth, Slope, Curvature, Rugosity,
          BPI_Broad, BPI_Fine, Sum_Temp, Sum_Sal, Win_Sal) %>%
   dplyr::mutate(PRES = as.factor(PRES),
          Habitat = as.factor(Habitat))
+levels(hs_train$PRES) # reverse levels so "PRESENCE" is the "positive" class 
+hs_train$PRES = factor(hs_train$PRES, levels=rev(levels(hs_train$PRES)))
 
 hs_test = read.csv(paste0(csv_wd, "Bluestriped_Grunt_Testing_Data.csv"))%>%
   dplyr::select(PRES, Habitat, Mangrove_Dist, Depth, Slope, Curvature, Rugosity,
          BPI_Broad, BPI_Fine, Sum_Temp, Sum_Sal, Win_Sal) %>%
   dplyr::mutate(PRES = as.factor(PRES),
          Habitat = as.factor(Habitat))
+levels(hs_test$PRES) # reverse levels so "PRESENCE" is the "positive" class 
+hs_test$PRES = factor(hs_test$PRES, levels=rev(levels(hs_test$PRES)))
+
 
 # add an empty row with mangrove habitat (ID# 11) to the test data so an equal 
 # number of habitat levels are present in the training and testing data
