@@ -2070,3 +2070,154 @@ mean_sum_do_test = writeRaster(raster::mask(raster::crop(mean_sum_do_test, habit
 
 rm(list = c("s_do_test_merge", "s_do_test_par", "mean_sum_do_test", "cl"))
 showConnections()
+
+#### FINAL DATASET: TRAINING AREA ####
+
+# presence-absence sub-adult gray snapper (Lutjanus griseus) and bluestriped grunt 
+# (Haemulon sciurus) records in the training area
+lg_occ_train = read.csv(paste0(train_wd, "Occurrences/Presence_Absence/Subadult_Gray_Snapper_PA_Train.csv"))[,-6]
+lg_coords_train = lg_occ_train %>% dplyr::select(LON_M, LAT_M) %>%
+  st_as_sf(., coords = c("LON_M", "LAT_M"), crs = my_crs)
+
+hs_occ_train = read.csv(paste0(train_wd, "Occurrences/Presence_Absence/Subadult_Bluestriped_Grunt_PA_Train.csv"))[,-6]
+hs_coords_train = hs_occ_train %>% dplyr::select(LON_M, LAT_M) %>%
+  st_as_sf(., coords = c("LON_M", "LAT_M"), crs = my_crs)
+
+# spatial predictors in training area
+habitat_train = raster(paste0(train_wd, "Environmental/Habitat.asc"))
+mg_dist_train = raster(paste0(train_wd, "Environmental/Mangrove_Dist.asc"))
+depth_train = raster(paste0(train_wd, "Environmental/Depth.asc"))
+sd_depth_train = raster(paste0(train_wd, "Environmental/SD_Depth.asc"))
+slope_train = raster(paste0(train_wd, "Environmental/Slope.asc"))
+curvature_train = raster(paste0(train_wd, "Environmental/Curvature.asc"))
+plan_curve_train = raster(paste0(train_wd, "Environmental/Plan_Curve.asc"))
+bpi_fine_train = raster(paste0(train_wd, "Environmental/BPI_Fine.asc"))
+bpi_broad_train = raster(paste0(train_wd, "Environmental/BPI_Broad.asc"))
+rugosity_train = raster(paste0(train_wd, "Environmental/Rugosity.asc"))
+sum_temp_train = raster(paste0(train_wd, "Environmental/Sum_Temp.asc"))
+sum_do_train = raster(paste0(train_wd, "Environmental/Sum_DO.asc"))
+sum_sal_train = raster(paste0(train_wd, "Environmental/Sum_Sal.asc"))
+win_temp_train = raster(paste0(train_wd, "Environmental/Win_Temp.asc"))
+win_do_train = raster(paste0(train_wd, "Environmental/Win_DO.asc"))
+win_sal_train = raster(paste0(train_wd, "Environmental/Win_Sal.asc"))
+
+# define crs
+crs(habitat_train) = my_crs
+crs(mg_dist_train) = my_crs
+crs(depth_train) = my_crs
+crs(sd_depth_train) = my_crs
+crs(slope_train) = my_crs
+crs(curvature_train) = my_crs
+crs(plan_curve_train) = my_crs
+crs(bpi_fine_train) = my_crs
+crs(bpi_broad_train) = my_crs
+crs(rugosity_train) = my_crs
+crs(sum_temp_train) = my_crs
+crs(sum_do_train) = my_crs
+crs(sum_sal_train) = my_crs
+crs(win_temp_train) = my_crs
+crs(win_do_train) = my_crs
+crs(win_sal_train) = my_crs
+
+# create raster stack for training area
+env_train = stack(x = c(habitat_train, mg_dist_train, depth_train, sd_depth_train,
+                        slope_train, curvature_train, plan_curve_train, bpi_fine_train,
+                        bpi_broad_train, rugosity_train, sum_temp_train, sum_do_train, 
+                        sum_sal_train, win_temp_train, win_do_train, win_sal_train))
+
+
+# combine fish and environmental data in the training area and save the final data frames
+lg_train = cbind(lg_occ_train, raster::extract(env_train, lg_coords_train)) 
+lg_train$Habitat = factor(lg_train$Habitat) # convert habitat to factor
+# re-label response variable (1 = presence, 0 = absence) & convert to
+# factor, otherwise caret will return errors later
+lg_train$PRES[lg_train$PRES == 1] = "PRESENCE"
+lg_train$PRES[lg_train$PRES == 0] = "ABSENCE"
+lg_train$PRES = as.factor(lg_train$PRES)
+write.csv(lg_train, paste0(csv_wd, "Gray_Snapper_Training_Data.csv"), row.names = F)
+
+
+hs_train = cbind(hs_occ_train, raster::extract(env_train, hs_coords_train)) 
+hs_train$Habitat = factor(hs_train$Habitat) # convert habitat to factor
+# re-label response variable (1 = presence, 0 = absence) & convert to
+# factor, otherwise caret will return errors later
+hs_train$PRES[hs_train$PRES == 1] = "PRESENCE"
+hs_train$PRES[hs_train$PRES == 0] = "ABSENCE"
+hs_train$PRES = as.factor(hs_train$PRES)
+write.csv(hs_train, paste0(csv_wd, "Bluestriped_Grunt_Training_Data.csv"), row.names = F)
+
+
+#### FINAL DATASET: TESTING AREA ####
+
+# presence-absence sub-adult gray snapper (Lutjanus griseus) and bluestriped grunt 
+# (Haemulon sciurus) records in the testing area
+lg_occ_test = read.csv(paste0(test_wd, "Occurrences/Presence_Absence/Subadult_Gray_Snapper_PA_Test.csv"))[,-6]
+lg_coords_test = lg_occ_test %>% dplyr::select(LON_M, LAT_M) %>%
+  st_as_sf(., coords = c("LON_M", "LAT_M"), crs = my_crs)
+
+hs_occ_test = read.csv(paste0(test_wd, "Occurrences/Presence_Absence/Subadult_Bluestriped_Grunt_PA_Test.csv"))[,-6]
+hs_coords_test = hs_occ_test %>% dplyr::select(LON_M, LAT_M) %>%
+  st_as_sf(., coords = c("LON_M", "LAT_M"), crs = my_crs)
+
+# spatial predictors in testing area
+habitat_test = raster(paste0(test_wd, "Environmental/Habitat.asc"))
+mg_dist_test = raster(paste0(test_wd, "Environmental/Mangrove_Dist.asc"))
+depth_test = raster(paste0(test_wd, "Environmental/Depth.asc"))
+sd_depth_test = raster(paste0(test_wd, "Environmental/SD_Depth.asc"))
+slope_test = raster(paste0(test_wd, "Environmental/Slope.asc"))
+curvature_test = raster(paste0(test_wd, "Environmental/Curvature.asc"))
+plan_curve_test = raster(paste0(test_wd, "Environmental/Plan_Curve.asc"))
+bpi_fine_test = raster(paste0(test_wd, "Environmental/BPI_Fine.asc"))
+bpi_broad_test = raster(paste0(test_wd, "Environmental/BPI_Broad.asc"))
+rugosity_test = raster(paste0(test_wd, "Environmental/Rugosity.asc"))
+sum_temp_test = raster(paste0(test_wd, "Environmental/Sum_Temp.asc"))
+sum_do_test = raster(paste0(test_wd, "Environmental/Sum_DO.asc"))
+sum_sal_test = raster(paste0(test_wd, "Environmental/Sum_Sal.asc"))
+win_temp_test = raster(paste0(test_wd, "Environmental/Win_Temp.asc"))
+win_do_test = raster(paste0(test_wd, "Environmental/Win_DO.asc"))
+win_sal_test = raster(paste0(test_wd, "Environmental/Win_Sal.asc"))
+
+# define crs
+crs(habitat_test) = my_crs
+crs(mg_dist_test) = my_crs
+crs(depth_test) = my_crs
+crs(sd_depth_test) = my_crs
+crs(slope_test) = my_crs
+crs(curvature_test) = my_crs
+crs(plan_curve_test) = my_crs
+crs(bpi_fine_test) = my_crs
+crs(bpi_broad_test) = my_crs
+crs(rugosity_test) = my_crs
+crs(sum_temp_test) = my_crs
+crs(sum_do_test) = my_crs
+crs(sum_sal_test) = my_crs
+crs(win_temp_test) = my_crs
+crs(win_do_test) = my_crs
+crs(win_sal_test) = my_crs
+
+# create raster stack for testing area
+env_test = stack(x = c(habitat_test, mg_dist_test, depth_test, sd_depth_test,
+                       slope_test, curvature_test, plan_curve_test, bpi_fine_test,
+                       bpi_broad_test, rugosity_test, sum_temp_test, sum_do_test, 
+                       sum_sal_test, win_temp_test, win_do_test, win_sal_test))
+
+
+# combine fish and environmental data in the testing area
+lg_test = cbind(lg_occ_test, raster::extract(env_test, lg_coords_test)) 
+lg_test$Habitat = factor(lg_test$Habitat) # convert habitat to factor
+# re-label response variable (1 = presence, 0 = absence) & convert to
+# factor, otherwise caret will return errors later
+lg_test$PRES[lg_test$PRES == 1] = "PRESENCE"
+lg_test$PRES[lg_test$PRES == 0] = "ABSENCE"
+lg_test$PRES = as.factor(lg_test$PRES)
+write.csv(lg_test, paste0(csv_wd, "Gray_Snapper_Testing_Data.csv"), row.names = F)
+
+
+hs_test = cbind(hs_occ_test, raster::extract(env_test, hs_coords_test)) 
+hs_test$Habitat = factor(hs_test$Habitat) # convert habitat to factor
+# re-label response variable (1 = presence, 0 = absence) & convert to
+# factor, otherwise caret will return errors later
+hs_test$PRES[hs_test$PRES == 1] = "PRESENCE"
+hs_test$PRES[hs_test$PRES == 0] = "ABSENCE"
+hs_test$PRES = as.factor(hs_test$PRES)
+write.csv(hs_test, paste0(csv_wd, "Bluestriped_Grunt_Testing_Data.csv"), row.names = F)
