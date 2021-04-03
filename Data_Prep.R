@@ -1230,7 +1230,9 @@ train_kde = sp.kde(x = sampling_effort_train,
 tm_shape(train_kde) + tm_raster() 
 train_kde = raster::mask(raster::crop(train_kde, habitat_train), habitat_train)
 compareRaster(train_kde, habitat_train, extent = T, crs = T, rowcol = T)
-tm_shape(train_kde) + tm_raster(n = 5, palette = "-RdBu") #+ tm_shape(sampling_effort_train) + tm_dots(size = 0.01)
+train_kde = train_kde + (1/10000) # add small constant value because bias grid can't have 0 in MaxEnt
+tm_shape(train_kde) + tm_raster(n = 5, palette = "-RdBu") 
+train_kde = raster::setMinMax(train_kde) 
 writeRaster(train_kde, filename = paste0(train_wd, "Occurrences/bias.asc"),
             format = "ascii", overwrite = T)
 
