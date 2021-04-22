@@ -18,7 +18,8 @@ library(easypackages)
 libraries("rgdal", "gdalUtils", "raster", "sp", "sf", "tmap", "dplyr", "lwgeom", "rgeos",
           "cleangeo", "tidyverse", "stars", "fasterize", "PNWColors", "spex", "igraph", 
           "spatialEco")
-
+conflict_prefer("select", "dplyr")
+conflict_prefer("filter", "dplyr")
 
 # change where large temp rasters are saved
 rasterOptions(tmpdir = "Z:/Courtney/Stuart_MSc_Ch1/Temp/")
@@ -1250,12 +1251,16 @@ library(easypackages)
 libraries("tidyr", "rgdal", "gdalUtils", "raster", "sp", "sf", "tmap", "lwgeom", "rgeos",
           "cleangeo", "tidyverse", "stars", "fasterize", "PNWColors", "spex", "igraph", 
           "spatialEco", "tibble", "ncf", "spdep", "gstat", "geoR", "readxl", "dplyr",
-          "parallel", "doParallel")
-rasterOptions(tmpdir = "Z:/Courtney/GIS/Temp/") # temporary working directory for raster package
+          "parallel", "doParallel", "conflicted") 
+conflict_prefer("select", "dplyr")
+conflict_prefer("filter", "dplyr")
+
+# change where large temp rasters are saved
+rasterOptions(tmpdir = "Z:/Courtney/Stuart_MSc_Ch1/Temp/")
 
 # full study domain for clipping water quality data
-#train = st_read(paste0(train_wd, "GIS/Training_Area.shp")) #if you need to reload the training area
-#test = st_read(paste0(test_wd, "GIS/Testing_Area.shp")) # if you need to reload the testing area
+# train = st_read(paste0(train_wd, "GIS/Training_Area.shp")) # re-load if needed
+# test = st_read(paste0(test_wd, "GIS/Testing_Area.shp"))
 domain = rbind(train, test)
 
 # from The SERC Water Quality Monitoring Network (WQMN) (http://serc.fiu.edu/wqmnetwork/)
@@ -1265,7 +1270,7 @@ head(wqmn, 5)
 
 # pre-processing and cleaning 
 wqmn = wqmn %>%
-  mutate(DATE = as.Date(wqmn$DATE, origin = "1899-12-30")) %>% # excel date origin according to http://support.microsoft.com/kb/214330
+  mutate(DATE = as.Date(wqmn$DATE, origin = "1899-12-30")) %>% # this is the origin for excel sheets according to http://support.microsoft.com/kb/214330
   separate(DATE, into = c("YEAR", "MONTH", "DAY"), sep = "-", remove = F) %>% # separate out date data
   filter(YEAR %in% c("2014", "2015", "2016", "2017", "2018")) %>% # keeping only years of interest
   rename(TEMP = `TEMP-B`, SAL = `SAL-B`, DO = `DO-B`) %>% # rename variables because "-" causes problems
@@ -1275,8 +1280,7 @@ wqmn = wqmn %>%
          LAT_M = sf::st_coordinates(.)[,2]) %>%
   st_intersection(., st_make_valid(domain)) %>% # clip data to study domain 
   add_column(SEASON = NA) %>% # four seasons based on quarterly sampling 
-  mutate(SEASON = cut(as.numeric(.$MONTH), breaks = c(0,3,6,9,Inf), 
-                      labels = c("winter", "spring", "summer", "fall"))) %>%
+  mutate(SEASON = cut(as.numeric(.$MONTH), breaks = c(0,3,6,9,Inf), labels = c("winter", "spring", "summer", "fall"))) %>%
   select(BASIN, SITE, YEAR, MONTH, DAY, SEASON, LON_M, LAT_M, TEMP, SAL, DO) 
 
 # Biscayne Bay Water Quality (BBWQ) from Miami-Dade County Surface and Groundwater Quality Viewer (https://mdc.maps.arcgis.com/apps/webappviewer/index.html?id=3fd24515ee614f5db63924d7323a4ea7)
@@ -1292,12 +1296,11 @@ bb_temp = bb_temp %>%
   rename(TEMP = Value, # rename columns to match WQMN data 
          SITE = StationUniqueID,
          BASIN = Water_Basin) %>%
-  add_column(SEASON = NA) %>% # four seasons based on WQMN quarterly sampling 
-  mutate(SEASON = cut(as.numeric(.$MONTH), breaks = c(0,3,6,9,Inf), 
-                      labels = c("winter", "spring", "summer", "fall"))) %>%
+  add_column(SEASON = NA) %>% # four seasons based on wqmn quarterly sampling 
+  mutate(SEASON = cut(as.numeric(.$MONTH), breaks = c(0,3,6,9,Inf), labels = c("winter", "spring", "summer", "fall"))) %>%
   select(BASIN, SITE, YEAR, MONTH, DAY, SEASON, X_COORD, Y_COORD, TEMP)
 
-# BBWQ salinity data
+# BBWQ saliniy data
 bb_sal = read.csv(paste0(source_wd, "Water_Conditions/BBWQ_Salinity.csv"))
 head(bb_sal, 5)
 
@@ -1310,8 +1313,7 @@ bb_sal = bb_sal %>%
          SITE = StationUniqueID,
          BASIN = Water_Basin) %>%
   add_column(SEASON = NA) %>% # four seasons based on WQMN quarterly sampling 
-  mutate(SEASON = cut(as.numeric(.$MONTH), breaks = c(0,3,6,9,Inf), 
-                      labels = c("winter", "spring", "summer", "fall"))) %>%
+  mutate(SEASON = cut(as.numeric(.$MONTH), breaks = c(0,3,6,9,Inf), labels = c("winter", "spring", "summer", "fall"))) %>%
   select(BASIN, SITE, YEAR, MONTH, DAY, SEASON, X_COORD, Y_COORD, SAL)
 
 # BBWQ dissolved oxygen data
@@ -1327,12 +1329,11 @@ bb_do = bb_do %>%
          SITE = StationUniqueID,
          BASIN = Water_Basin) %>%
   add_column(SEASON = NA) %>% # four seasons based on WQMN quarterly sampling 
-  mutate(SEASON = cut(as.numeric(.$MONTH), breaks = c(0,3,6,9,Inf), 
-                      labels = c("winter", "spring", "summer", "fall"))) %>%
+  mutate(SEASON = cut(as.numeric(.$MONTH), breaks = c(0,3,6,9,Inf), labels = c("winter", "spring", "summer", "fall"))) %>%
   select(BASIN, SITE, YEAR, MONTH, DAY, SEASON, X_COORD, Y_COORD, DO)
 
 #### WINTER DATA ####
-# here are the WQMN stations that were sampled every winter for the full five year period
+# here are the wqmn stations that were sampled every winter for the full five year period
 win_wqmn_sites = wqmn %>%
   select(SITE, YEAR, MONTH, DAY, SEASON, LON_M, LAT_M, TEMP, SAL, DO) %>%
   filter(SEASON == "winter", !is.na(TEMP), !is.na(SAL), !is.na(DO)) %>%
@@ -1341,7 +1342,7 @@ win_wqmn_sites = wqmn %>%
   filter(n == 5) %>% # five years (2014, 2015, 2016, 2017, 2018)
   ungroup()
 
-# restricting the WQMN data to only those sites in the win_wqmn_sites data frame and calculating summary stats
+# restricting the wqmn data to only those sites in the win_wqmn_sites data frame and calculating summary stats
 win_wqmn = wqmn %>%
   filter(SITE %in% win_wqmn_sites$SITE, SEASON == "winter") %>%
   group_by(SITE, LON_M, LAT_M) %>%
@@ -1357,14 +1358,14 @@ win_wqmn = wqmn %>%
 win_bb_temp = bb_temp %>%
   filter(SEASON == "winter") %>%
   group_by(SITE, X_COORD, Y_COORD, YEAR) %>% # annual means (a mean for each year)
-  mutate(ANN_MEAN_WIN_TEMP = mean(TEMP), SD_ANN_WIN_TEMP = sd(TEMP)) %>% # mean temp for each of the five years
+  mutate(ANN_MEAN_WIN_TEMP = mean(TEMP), SD_ANN_WIN_TEMP = sd(TEMP)) %>% # mean TEMP for each of the five years
   select(everything()) %>%
   distinct(BASIN, SITE, X_COORD, Y_COORD, ANN_MEAN_WIN_TEMP, SD_ANN_WIN_TEMP)
 
 win_bb_sal = bb_sal %>%
   filter(SEASON == "winter") %>%
   group_by(SITE, X_COORD, Y_COORD, YEAR) %>% # annual means (a mean for each year)
-  mutate(ANN_MEAN_WIN_SAL = mean(SAL), SD_ANN_WIN_SAL = sd(SAL)) %>% # mean salinity for each of the five years
+  mutate(ANN_MEAN_WIN_SAL = mean(SAL), SD_ANN_WIN_SAL = sd(SAL)) %>% # mean SAL for each of the five years
   select(everything()) %>%
   distinct(BASIN, SITE, X_COORD, Y_COORD, ANN_MEAN_WIN_SAL, SD_ANN_WIN_SAL)
 
@@ -1393,7 +1394,7 @@ win_bb_do_sites = win_bb_do %>%
   filter(n == 5) %>% # five years (2014, 2015, 2016, 2017, 2018)
   ungroup()
 
-# restricting the BBWQ data to only those sites that were sampled in each of the five years
+# restricting the bbwq data to only those sites that were sampled in each of the five years
 # calculating summary stats from the annual means 
 win_bb_temp = win_bb_temp %>%
   filter(SITE %in% win_bb_temp_sites$SITE) %>%
@@ -1420,7 +1421,6 @@ win_bb_do = win_bb_do %>%
 win_bbwq = left_join(win_bb_temp, win_bb_sal)
 win_bbwq = left_join(win_bbwq, win_bb_do)
 
-# all winter BBWQ data
 win_bbwq = win_bbwq %>%
   st_as_sf(., coords = c("X_COORD", "Y_COORD"), crs = us_ft) %>% # convert to spatial
   st_transform(., my_crs) %>% # re-project to standard CRS
@@ -1442,7 +1442,7 @@ winter_wq_sp = winter_wq %>% st_drop_geometry()
 coordinates(winter_wq_sp) = ~ LON_M + LAT_M
 proj4string(winter_wq_sp) = proj4string(my_crs) # use my_crs CRS object to define proj4 string of the SPDF
 summary(winter_wq_sp)
-write.csv(winter_wq_sp, paste0(csv_wd, "Winter_Water_Conditions.csv")) 
+write.csv(winter_wq_sp, paste0(csv_wd, "Winter_Water_Conditions.csv"), row.names = F) 
 
 # first taking a glimpse at correlograms and the Moran's I values for the data to ensure that there is spatial dependence
 winter_coords = cbind(winter_wq_sp$LON_M, winter_wq_sp$LAT_M) # calculate a distance matrix
@@ -1458,20 +1458,20 @@ plot(w_sal_corr)
 w_do_corr = spline.correlog(x = winter_wq_sp$LON_M, y = winter_wq_sp$LAT_M, z = winter_wq_sp$MEAN_WIN_DO, xmax = winter_maxdist, resamp = 100, type = "boot")
 plot(w_do_corr)
 
-# neighborhood list (neighbors within 20 km distance so every site has at least one neighbor)
-winter_neigh = dnearneigh(x = winter_coords, d1 = 0, d2 = 20000, longlat = F)
+# neighborhood list (neighbors within 15 km distance so every site has at least one neighbor)
+winter_neigh = dnearneigh(x = winter_coords, d1 = 0, d2 = 15000, longlat = F)
 plot(winter_neigh, coordinates(winter_coords))
 winter_wts = nb2listw(neighbours = winter_neigh, style = "W", zero.policy = T) # weights matrix for calculating Moran's I
 
 # Moran's I with normal approximations
-moran.test(winter_wq_sp$MEAN_WIN_TEMP, listw = winter_wts, randomisation = F, zero.policy = T) # est. Moran's I stat = 0.585978759, p < 0.01 sig. spatial dependence
-moran.test(winter_wq_sp$MEAN_WIN_SAL, listw = winter_wts, randomisation = F, zero.policy = T) # est. Moran's I stat = 0.288572497, p < 0.01 sig. spatial dependence
-moran.test(winter_wq_sp$MEAN_WIN_DO, listw = winter_wts, randomisation = F, zero.policy = T) # est. Moran's I stat = 0.244604117, p < 0.01 sig. spatial dependence
+moran.test(winter_wq_sp$MEAN_WIN_TEMP, listw = winter_wts, randomisation = F, zero.policy = T) # est. Moran's I stat = 0.65, p < 0.01 sig. spatial dependence
+moran.test(winter_wq_sp$MEAN_WIN_SAL, listw = winter_wts, randomisation = F, zero.policy = T) # est. Moran's I stat = 0.45, p < 0.01 sig. spatial dependence
+moran.test(winter_wq_sp$MEAN_WIN_DO, listw = winter_wts, randomisation = F, zero.policy = T) # est. Moran's I stat = 0.38, p < 0.01 sig. spatial dependence
 
 # Moran's I with Monte Carlo permutations, does everything match with the normal approximations?
-moran.mc(winter_wq_sp$MEAN_WIN_TEMP, listw = winter_wts, nsim = 99, zero.policy = T) # est. Moran's I stat = 0.58598, p = 0.01 sig. spatial dependence
-moran.mc(winter_wq_sp$MEAN_WIN_SAL, listw = winter_wts, nsim = 99, zero.policy = T) # est. Moran's I stat = 0.28857, p = 0.01 sig. spatial dependence
-moran.mc(winter_wq_sp$MEAN_WIN_DO, listw = winter_wts, nsim = 99, zero.policy = T) # est. Moran's I stat = 0.2446, p = 0.01 sig. spatial dependence
+moran.mc(winter_wq_sp$MEAN_WIN_TEMP, listw = winter_wts, nsim = 99, zero.policy = T) # est. Moran's I stat = 0.65, p = 0.01 sig. spatial dependence
+moran.mc(winter_wq_sp$MEAN_WIN_SAL, listw = winter_wts, nsim = 99, zero.policy = T) # est. Moran's I stat = 0.45, p = 0.01 sig. spatial dependence
+moran.mc(winter_wq_sp$MEAN_WIN_DO, listw = winter_wts, nsim = 99, zero.policy = T) # est. Moran's I stat = 0.38, p = 0.01 sig. spatial dependence
 
 # according to Moran tests with both normal and Monte Carlo approximations, there is significant spatial dependence 
 # in the winter temp, sal, and DO data.
@@ -1487,21 +1487,21 @@ print(w_temp_fvgm)
 
 w_sal_evgm = variogram(MEAN_WIN_SAL ~ 1, winter_wq_sp, cutoff = winter_maxdist)
 plot(w_sal_evgm, xlab = "distance (m)", pch = 19)
-w_sal_fvgm = fit.variogram(w_sal_evgm, vgm(psill = 5, model = "Sph", range = 20000, nugget = 3))
+w_sal_fvgm = fit.variogram(w_sal_evgm, vgm(psill = 10, model = "Sph", range = 20000, nugget = 3))
 w_sal_svgm_plot = plot(w_sal_evgm, model = w_sal_fvgm, xlab = "distance (m)", pch = 19)
 w_sal_svgm_plot
 print(w_sal_fvgm)
 
 w_do_evgm = variogram(MEAN_WIN_DO ~ 1, winter_wq_sp, cutoff = winter_maxdist)
 plot(w_do_evgm, xlab = "distance (m)", pch = 19)
-w_do_fvgm = fit.variogram(w_do_evgm, vgm(model = "Sph"), fit.sills = TRUE, fit.ranges = TRUE)
+w_do_fvgm = fit.variogram(w_do_evgm, vgm(psill = 0.08, model = "Sph", range = 10000, nugget = 0.02))
 w_do_fvgm_plot = plot(w_do_evgm, model = w_do_fvgm, xlab = "distance (m)", pch = 19)
 w_do_fvgm_plot
 print(w_do_fvgm)
 
 
 #### SUMMER DATA ####
-# here are the WQMN stations that were sampled every summer for the full five year period
+# here are the stations that were sampled every summer for the full five year period
 sum_wqmn_sites = wqmn %>%
   select(SITE, YEAR, MONTH, SEASON, LON_M, LAT_M, TEMP, SAL, DO) %>%
   filter(SEASON == "summer", !is.na(TEMP), !is.na(SAL), !is.na(DO)) %>%
@@ -1510,7 +1510,7 @@ sum_wqmn_sites = wqmn %>%
   filter(n == 5) %>%
   ungroup()
 
-# restricting the WQMN data frame to only those sites in the sum_wqmn_sites data frame and calculating summary stats
+# restricting the wqmn data frame to only those sites in the sum_wqmn_sites data frame and calculating summary stats
 sum_wqmn = wqmn %>%
   filter(SITE %in% sum_wqmn_sites$SITE, SEASON == "summer") %>%
   group_by(SITE, LON_M, LAT_M) %>%
@@ -1561,7 +1561,7 @@ sum_bb_do_sites = sum_bb_do %>%
   filter(n == 5) %>% # five years (2014, 2015, 2016, 2017, 2018)
   ungroup()
 
-# restricting the BBWQ data to only those sites that were sampled in each of the five years
+# restricting the bbwq data to only those sites that were sampled in each of the five years
 # calculating summary stats from the annual means 
 sum_bb_temp = sum_bb_temp %>%
   filter(SITE %in% sum_bb_temp_sites$SITE) %>%
@@ -1588,7 +1588,6 @@ sum_bb_do = sum_bb_do %>%
 sum_bbwq = left_join(sum_bb_temp, sum_bb_sal)
 sum_bbwq = left_join(sum_bbwq, sum_bb_do)
 
-#  all summer BBWQ data
 sum_bbwq = sum_bbwq %>%
   st_as_sf(., coords = c("X_COORD", "Y_COORD"), crs = us_ft) %>% # convert to spatial
   st_transform(., my_crs) %>% # re-project to standard CRS
@@ -1610,7 +1609,7 @@ summer_wq_sp = summer_wq %>% st_drop_geometry()
 coordinates(summer_wq_sp) = ~ LON_M + LAT_M
 proj4string(summer_wq_sp) = proj4string(my_crs) # use my_crs CRS object to define proj4 string of the SPDF
 summary(summer_wq_sp)
-write.csv(summer_wq_sp, paste0(csv_wd, "Summer_Water_Conditions.csv"))
+write.csv(summer_wq_sp, paste0(csv_wd, "Summer_Water_Conditions.csv"), row.names = FALSE)
 
 
 # first taking a glimpse at correlograms and the Moran's I values for the data to ensure that there is spatial dependence
@@ -1627,22 +1626,22 @@ plot(s_sal_corr)
 s_do_corr = spline.correlog(x = summer_wq_sp$LON_M, y = summer_wq_sp$LAT_M, z = summer_wq_sp$MEAN_SUM_DO, xmax = summer_maxdist, resamp = 100, type = "boot")
 plot(s_do_corr)
 
-# neighborhood list (neighbors within 20 km distance so each site has at least one neighbor)
-summer_neigh = dnearneigh(x = summer_coords, d1 = 0, d2 = 20000, longlat = F)
+# neighborhood list (neighbors within 15 km distance so each site has at least one neighbor)
+summer_neigh = dnearneigh(x = summer_coords, d1 = 0, d2 = 15000, longlat = F)
 plot(summer_neigh, coordinates(summer_coords))
 summer_wts = nb2listw(neighbours = summer_neigh, style = "W", zero.policy = T) # weights matrix for calculating Moran's I
 
 
 # Moran's I with normal approximations
-moran.test(summer_wq_sp$MEAN_SUM_TEMP, listw = summer_wts, randomisation = F, zero.policy = T)  # est. Moran's I stat = 0.155536517, p < 0.01 sig. spatial dependence
-moran.test(summer_wq_sp$MEAN_SUM_SAL, listw = summer_wts, randomisation = F, zero.policy = T) # est. Moran's I stat =  0.186665202, p < 0.01 sig. spatial dependence
-moran.test(summer_wq_sp$MEAN_SUM_DO, listw = summer_wts, randomisation = F, zero.policy = T) # est. Moran's I stat = 0.254710245, p < 0.01 sig. spatial dependence
+moran.test(summer_wq_sp$MEAN_SUM_TEMP, listw = summer_wts, randomisation = F, zero.policy = T)  # est. Moran's I stat = 0.18, p < 0.01 sig. spatial dependence
+moran.test(summer_wq_sp$MEAN_SUM_SAL, listw = summer_wts, randomisation = F, zero.policy = T) # est. Moran's I stat =  0.27, p < 0.01 sig. spatial dependence
+moran.test(summer_wq_sp$MEAN_SUM_DO, listw = summer_wts, randomisation = F, zero.policy = T) # est. Moran's I stat = 0.37, p < 0.01 sig. spatial dependence
 
 
 # Moran's I with Monte Carlo permutations, does everything match with the normal approximations?
-moran.mc(summer_wq_sp$MEAN_SUM_TEMP, listw = summer_wts, nsim = 99, zero.policy = T)  # est. Moran's I stat = 0.15554, p = 0.01 sig. spatial dependence
-moran.mc(summer_wq_sp$MEAN_SUM_SAL, listw = summer_wts, nsim = 99, zero.policy = T) # est. Moran's I stat = 0.18667, p = 0.01 sig. spatial dependence
-moran.mc(summer_wq_sp$MEAN_SUM_DO, listw = summer_wts, nsim = 99, zero.policy = T) # est. Moran's I stat = 0.25471, p = 0.01 sig. spatial dependence
+moran.mc(summer_wq_sp$MEAN_SUM_TEMP, listw = summer_wts, nsim = 99, zero.policy = T)  # est. Moran's I stat = 0.18, p = 0.01 sig. spatial dependence
+moran.mc(summer_wq_sp$MEAN_SUM_SAL, listw = summer_wts, nsim = 99, zero.policy = T) # est. Moran's I stat = 0.27, p = 0.01 sig. spatial dependence
+moran.mc(summer_wq_sp$MEAN_SUM_DO, listw = summer_wts, nsim = 99, zero.policy = T) # est. Moran's I stat = 0.37, p = 0.01 sig. spatial dependence
 
 
 # according to Moran tests with both normal and Monte Carlo estimations, 
@@ -1652,14 +1651,16 @@ require(gstat)
 
 s_temp_evgm = variogram(MEAN_SUM_TEMP ~ 1, summer_wq_sp, cutoff = summer_maxdist) # empirical variogram
 plot(s_temp_evgm, xlab = "distance (m)", pch = 19)
-s_temp_fvgm = fit.variogram(s_temp_evgm, vgm(psill = 0.1, model = "Sph", range = 30000, nugget = 0.2))
+s_temp_fvgm = fit.variogram(s_temp_evgm, vgm(psill = 0.15, model = "Sph", range = 30000, nugget = 0.2))
 s_temp_svgm_plot = plot(s_temp_evgm, model = s_temp_fvgm, xlab = "distance (m)", pch = 19)
 s_temp_svgm_plot
 print(s_temp_fvgm)
 
 s_sal_evgm = variogram(MEAN_SUM_SAL ~ 1, summer_wq_sp, cutoff = summer_maxdist)
 plot(s_sal_evgm, xlab = "distance (m)", pch = 19)
-s_sal_fvgm = fit.variogram(s_sal_evgm, vgm(model = "Sph"), fit.sills = TRUE, fit.ranges = TRUE)
+# this is an odd one, but there is clear spatial dependence according to the Moran's I tests
+# and correlograms, let fit.variogram find the appropriate fitted parameters
+s_sal_fvgm = fit.variogram(s_sal_evgm, vgm(model = "Sph"), fit.sills = TRUE, fit.ranges = TRUE, fit.method = 1)
 s_sal_fvgm_plot = plot(s_sal_evgm, model = s_sal_fvgm, xlab = "distance (m)", pch = 19)
 s_sal_fvgm_plot
 print(s_sal_fvgm)
@@ -1719,9 +1720,11 @@ w_temp_train_merge = SpatialPixelsDataFrame(points = w_temp_train_merge, data = 
 summary(w_temp_train_merge)
 writeGDAL(w_temp_train_merge["var1.pred"], fname = paste0(temp_wd, "win_temp_train.tif"),
           drivername = "GTiff", type = "Float32")
+writeGDAL(w_temp_train_merge["var1.var"], fname = paste0(temp_wd, "win_temp_train_var.tif"),
+          drivername = "GTiff", type = "Float32")
 mean_win_temp_train = raster(paste0(temp_wd, "win_temp_train.tif"))
 mean_win_temp_train = writeRaster(raster::mask(raster::crop(mean_win_temp_train, habitat_train), habitat_train),
-                                  file = file.path(train_wd, "Environmental/Win_Temp.asc"), format = "ascii",
+                                  file = file.path(train_wd, "Environmental/Mean_Win_Temp.asc"), format = "ascii",
                                   overwrite = T)
 
 rm(list = c("w_temp_train_merge", "w_temp_train_par", "mean_win_temp_train", "cl"))
@@ -1748,9 +1751,11 @@ w_sal_train_merge = SpatialPixelsDataFrame(points = w_sal_train_merge, data = w_
 summary(w_sal_train_merge)
 writeGDAL(w_sal_train_merge["var1.pred"], fname = paste0(temp_wd, "win_sal_train.tif"),
           drivername = "GTiff", type = "Float32")
+writeGDAL(w_sal_train_merge["var1.var"], fname = paste0(temp_wd, "win_sal_train_var.tif"),
+          drivername = "GTiff", type = "Float32")
 mean_win_sal_train = raster(paste0(temp_wd, "win_sal_train.tif"))
 mean_win_sal_train = writeRaster(raster::mask(raster::crop(mean_win_sal_train, habitat_train), habitat_train),
-                                 file = file.path(train_wd, "Environmental/Win_Sal.asc"), format = "ascii",
+                                 file = file.path(train_wd, "Environmental/Mean_Win_Sal.asc"), format = "ascii",
                                  overwrite = T)
 
 rm(list = c("w_sal_train_merge", "w_sal_train_par", "mean_win_sal_train", "cl"))
@@ -1777,9 +1782,11 @@ w_do_train_merge = SpatialPixelsDataFrame(points = w_do_train_merge, data = w_do
 summary(w_do_train_merge)
 writeGDAL(w_do_train_merge["var1.pred"], fname = paste0(temp_wd, "win_do_train.tif"),
           drivername = "GTiff", type = "Float32")
+writeGDAL(w_do_train_merge["var1.var"], fname = paste0(temp_wd, "win_do_train_var.tif"),
+          drivername = "GTiff", type = "Float32")
 mean_win_do_train = raster(paste0(temp_wd, "win_do_train.tif"))
 mean_win_do_train = writeRaster(raster::mask(raster::crop(mean_win_do_train, habitat_train), habitat_train),
-                                file = file.path(train_wd, "Environmental/Win_DO.asc"), format = "ascii",
+                                file = file.path(train_wd, "Environmental/Mean_Win_DO.asc"), format = "ascii",
                                 overwrite = T)
 
 rm(list = c("w_do_train_merge", "w_do_train_par", "mean_win_do_train", "cl"))
@@ -1806,14 +1813,15 @@ s_temp_train_merge = SpatialPixelsDataFrame(points = s_temp_train_merge, data = 
 summary(s_temp_train_merge)
 writeGDAL(s_temp_train_merge["var1.pred"], fname = paste0(temp_wd, "sum_temp_train.tif"),
           drivername = "GTiff", type = "Float32")
+writeGDAL(s_temp_train_merge["var1.var"], fname = paste0(temp_wd, "sum_temp_train_var.tif"),
+          drivername = "GTiff", type = "Float32")
 mean_sum_temp_train = raster(paste0(temp_wd, "sum_temp_train.tif"))
 mean_sum_temp_train = writeRaster(raster::mask(raster::crop(mean_sum_temp_train, habitat_train), habitat_train),
-                                  file = file.path(train_wd, "Environmental/Sum_Temp.asc"), format = "ascii",
+                                  file = file.path(train_wd, "Environmental/Mean_Sum_Temp.asc"), format = "ascii",
                                   overwrite = T)
 
 rm(list = c("s_temp_train_merge", "s_temp_train_par", "mean_sum_temp_train", "cl"))
 showConnections()
-
 
 #### summer salinity ####
 cl = makeCluster(no_cores)
@@ -1836,9 +1844,11 @@ s_sal_train_merge = SpatialPixelsDataFrame(points = s_sal_train_merge, data = s_
 summary(s_sal_train_merge)
 writeGDAL(s_sal_train_merge["var1.pred"], fname = paste0(temp_wd, "sum_sal_train.tif"),
           drivername = "GTiff", type = "Float32")
+writeGDAL(s_sal_train_merge["var1.var"], fname = paste0(temp_wd, "sum_sal_train_var.tif"),
+          drivername = "GTiff", type = "Float32")
 mean_sum_sal_train = raster(paste0(temp_wd, "sum_sal_train.tif"))
 mean_sum_sal_train = writeRaster(raster::mask(raster::crop(mean_sum_sal_train, habitat_train), habitat_train),
-                                 file = file.path(train_wd, "Environmental/Sum_Sal.asc"), format = "ascii",
+                                 file = file.path(train_wd, "Environmental/Mean_Sum_Sal.asc"), format = "ascii",
                                  overwrite = T)
 
 rm(list = c("s_sal_train_merge", "s_sal_train_par", "mean_sum_sal_train", "cl"))
@@ -1865,9 +1875,12 @@ s_do_train_merge = SpatialPixelsDataFrame(points = s_do_train_merge, data = s_do
 summary(s_do_train_merge)
 writeGDAL(s_do_train_merge["var1.pred"], fname = paste0(temp_wd, "sum_do_train.tif"),
           drivername = "GTiff", type = "Float32")
+summary(s_do_train_merge)
+writeGDAL(s_do_train_merge["var1.var"], fname = paste0(temp_wd, "sum_do_train_var.tif"),
+          drivername = "GTiff", type = "Float32")
 mean_sum_do_train = raster(paste0(temp_wd, "sum_do_train.tif"))
 mean_sum_do_train = writeRaster(raster::mask(raster::crop(mean_sum_do_train, habitat_train), habitat_train),
-                                file = file.path(train_wd, "Environmental/Sum_DO.asc"), format = "ascii",
+                                file = file.path(train_wd, "Environmental/Mean_Sum_DO.asc"), format = "ascii",
                                 overwrite = T)
 
 rm(list = c("s_do_train_merge", "s_do_train_par", "mean_sum_do_train", "cl"))
@@ -1892,6 +1905,10 @@ test_grid = raster(ncol = ncol(habitat_test),
                    ymx = ymax(habitat_test)) %>%
   as(., "SpatialPixels")
 proj4string(test_grid) = proj4string(my_crs) # assign projection 
+
+# testing area rasters are larger than training area rasters, if doParallel 
+# throws errors about nodes not having enough memory, reduce no_cores to 15
+# so that each core has more space to work with
 
 ### winter temperature ####
 # initiate cluster 
@@ -1919,9 +1936,11 @@ w_temp_test_merge = SpatialPixelsDataFrame(points = w_temp_test_merge, data = w_
 summary(w_temp_test_merge)
 writeGDAL(w_temp_test_merge["var1.pred"], fname = paste0(temp_wd, "win_temp_test.tif"),
           drivername = "GTiff", type = "Float32")
+writeGDAL(w_temp_test_merge["var1.var"], fname = paste0(temp_wd, "win_temp_test_var.tif"),
+          drivername = "GTiff", type = "Float32")
 mean_win_temp_test = raster(paste0(temp_wd, "win_temp_test.tif"))
 mean_win_temp_test = writeRaster(raster::mask(raster::crop(mean_win_temp_test, habitat_test), habitat_test),
-                                 file = file.path(test_wd, "Environmental/Win_Temp.asc"), format = "ascii",
+                                 file = file.path(test_wd, "Environmental/Mean_Win_Temp.asc"), format = "ascii",
                                  overwrite = T)
 compareRaster(mean_win_temp_test, habitat_test, res = T, extent = T, rowcol = T)
 rm(list = c("w_temp_test_merge", "w_temp_test_par", "mean_win_temp_test", "cl"))
@@ -1948,9 +1967,11 @@ w_sal_test_merge = SpatialPixelsDataFrame(points = w_sal_test_merge, data = w_sa
 summary(w_sal_test_merge)
 writeGDAL(w_sal_test_merge["var1.pred"], fname = paste0(temp_wd, "win_sal_test.tif"),
           drivername = "GTiff", type = "Float32")
+writeGDAL(w_sal_test_merge["var1.var"], fname = paste0(temp_wd, "win_sal_test_var.tif"),
+          drivername = "GTiff", type = "Float32")
 mean_win_sal_test = raster(paste0(temp_wd, "win_sal_test.tif"))
 mean_win_sal_test = writeRaster(raster::mask(raster::crop(mean_win_sal_test, habitat_test), habitat_test),
-                                file = file.path(test_wd, "Environmental/Win_Sal.asc"), format = "ascii",
+                                file = file.path(test_wd, "Environmental/Mean_Win_Sal.asc"), format = "ascii",
                                 overwrite = T)
 
 rm(list = c("w_sal_test_merge", "w_sal_test_par", "mean_win_sal_test", "cl"))
@@ -1977,14 +1998,15 @@ w_do_test_merge = SpatialPixelsDataFrame(points = w_do_test_merge, data = w_do_t
 summary(w_do_test_merge)
 writeGDAL(w_do_test_merge["var1.pred"], fname = paste0(temp_wd, "win_do_test.tif"),
           drivername = "GTiff", type = "Float32")
+writeGDAL(w_do_test_merge["var1.var"], fname = paste0(temp_wd, "win_do_test_var.tif"),
+          drivername = "GTiff", type = "Float32")
 mean_win_do_test = raster(paste0(temp_wd, "win_do_test.tif"))
 mean_win_do_test = writeRaster(raster::mask(raster::crop(mean_win_do_test, habitat_test), habitat_test),
-                               file = file.path(test_wd, "Environmental/Win_DO.asc"), format = "ascii",
+                               file = file.path(test_wd, "Environmental/Mean_Win_DO.asc"), format = "ascii",
                                overwrite = T)
 
 rm(list = c("w_do_test_merge", "w_do_test_par", "mean_win_do_test", "cl"))
 showConnections()
-
 
 #### summer temperature ####
 cl = makeCluster(no_cores)
@@ -2007,9 +2029,11 @@ s_temp_test_merge = SpatialPixelsDataFrame(points = s_temp_test_merge, data = s_
 summary(s_temp_test_merge)
 writeGDAL(s_temp_test_merge["var1.pred"], fname = paste0(temp_wd, "sum_temp_test.tif"),
           drivername = "GTiff", type = "Float32")
+writeGDAL(s_temp_test_merge["var1.var"], fname = paste0(temp_wd, "sum_temp_test_var.tif"),
+          drivername = "GTiff", type = "Float32")
 mean_sum_temp_test = raster(paste0(temp_wd, "sum_temp_test.tif"))
 mean_sum_temp_test = writeRaster(raster::mask(raster::crop(mean_sum_temp_test, habitat_test), habitat_test),
-                                 file = file.path(test_wd, "Environmental/Sum_Temp.asc"), format = "ascii",
+                                 file = file.path(test_wd, "Environmental/Mean_Sum_Temp.asc"), format = "ascii",
                                  overwrite = T)
 
 rm(list = c("s_temp_test_merge", "s_temp_test_par", "mean_sum_temp_test", "cl"))
@@ -2036,9 +2060,11 @@ s_sal_test_merge = SpatialPixelsDataFrame(points = s_sal_test_merge, data = s_sa
 summary(s_sal_test_merge)
 writeGDAL(s_sal_test_merge["var1.pred"], fname = paste0(temp_wd, "sum_sal_test.tif"),
           drivername = "GTiff", type = "Float32")
+writeGDAL(s_sal_test_merge["var1.var"], fname = paste0(temp_wd, "sum_sal_test_var.tif"),
+          drivername = "GTiff", type = "Float32")
 mean_sum_sal_test = raster(paste0(temp_wd, "sum_sal_test.tif"))
 mean_sum_sal_test = writeRaster(raster::mask(raster::crop(mean_sum_sal_test, habitat_test), habitat_test),
-                                file = file.path(test_wd, "Environmental/Sum_Sal.asc"), format = "ascii",
+                                file = file.path(test_wd, "Environmental/Mean_Sum_Sal.asc"), format = "ascii",
                                 overwrite = T)
 
 rm(list = c("s_sal_test_merge", "s_sal_test_par", "mean_sum_sal_test", "cl"))
@@ -2065,9 +2091,11 @@ s_do_test_merge = SpatialPixelsDataFrame(points = s_do_test_merge, data = s_do_t
 summary(s_do_test_merge)
 writeGDAL(s_do_test_merge["var1.pred"], fname = paste0(temp_wd, "sum_do_test.tif"),
           drivername = "GTiff", type = "Float32")
+writeGDAL(s_do_test_merge["var1.var"], fname = paste0(temp_wd, "sum_do_test_var.tif"),
+          drivername = "GTiff", type = "Float32")
 mean_sum_do_test = raster(paste0(temp_wd, "sum_do_test.tif"))
 mean_sum_do_test = writeRaster(raster::mask(raster::crop(mean_sum_do_test, habitat_test), habitat_test),
-                               file = file.path(test_wd, "Environmental/Sum_DO.asc"), format = "ascii",
+                               file = file.path(test_wd, "Environmental/Mean_Sum_DO.asc"), format = "ascii",
                                overwrite = T)
 
 rm(list = c("s_do_test_merge", "s_do_test_par", "mean_sum_do_test", "cl"))
@@ -2096,12 +2124,12 @@ plan_curve_train = raster(paste0(train_wd, "Environmental/Plan_Curve.asc"))
 bpi_fine_train = raster(paste0(train_wd, "Environmental/BPI_Fine.asc"))
 bpi_broad_train = raster(paste0(train_wd, "Environmental/BPI_Broad.asc"))
 rugosity_train = raster(paste0(train_wd, "Environmental/Rugosity.asc"))
-sum_temp_train = raster(paste0(train_wd, "Environmental/Sum_Temp.asc"))
-sum_do_train = raster(paste0(train_wd, "Environmental/Sum_DO.asc"))
-sum_sal_train = raster(paste0(train_wd, "Environmental/Sum_Sal.asc"))
-win_temp_train = raster(paste0(train_wd, "Environmental/Win_Temp.asc"))
-win_do_train = raster(paste0(train_wd, "Environmental/Win_DO.asc"))
-win_sal_train = raster(paste0(train_wd, "Environmental/Win_Sal.asc"))
+sum_temp_train = raster(paste0(train_wd, "Environmental/Mean_Sum_Temp.asc"))
+sum_do_train = raster(paste0(train_wd, "Environmental/Mean_Sum_DO.asc"))
+sum_sal_train = raster(paste0(train_wd, "Environmental/Mean_Sum_Sal.asc"))
+win_temp_train = raster(paste0(train_wd, "Environmental/Mean_Win_Temp.asc"))
+win_do_train = raster(paste0(train_wd, "Environmental/Mean_Win_DO.asc"))
+win_sal_train = raster(paste0(train_wd, "Environmental/Mean_Win_Sal.asc"))
 
 # define crs
 crs(habitat_train) = my_crs
@@ -2133,20 +2161,20 @@ lg_train = cbind(lg_occ_train, raster::extract(env_train, lg_coords_train))
 lg_train$Habitat = factor(lg_train$Habitat) # convert habitat to factor
 # re-label response variable (1 = presence, 0 = absence) & convert to
 # factor, otherwise caret will return errors later
-lg_train$PRES[lg_train$PRES == 1] = "PRESENCE"
-lg_train$PRES[lg_train$PRES == 0] = "ABSENCE"
-lg_train$PRES = as.factor(lg_train$PRES)
-write.csv(lg_train, paste0(csv_wd, "Gray_Snapper_Training_Data.csv"), row.names = F)
+lg_train$PRES = as.factor(ifelse(lg_train$PRES == 1, "PRESENCE", "ABSENCE"))
+
+# save data frame to csv
+write.csv(lg_train, paste0(csv_wd, "Subadult_Gray_Snapper_Training_Data.csv"), row.names = F)
 
 
 hs_train = cbind(hs_occ_train, raster::extract(env_train, hs_coords_train)) 
 hs_train$Habitat = factor(hs_train$Habitat) # convert habitat to factor
 # re-label response variable (1 = presence, 0 = absence) & convert to
 # factor, otherwise caret will return errors later
-hs_train$PRES[hs_train$PRES == 1] = "PRESENCE"
-hs_train$PRES[hs_train$PRES == 0] = "ABSENCE"
-hs_train$PRES = as.factor(hs_train$PRES)
-write.csv(hs_train, paste0(csv_wd, "Bluestriped_Grunt_Training_Data.csv"), row.names = F)
+hs_train$PRES = as.factor(ifelse(hs_train$PRES == 1, "PRESENCE", "ABSENCE"))
+
+# save data frame to csv
+write.csv(hs_train, paste0(csv_wd, "Subadult_Bluestriped_Grunt_Training_Data.csv"), row.names = F)
 
 
 #### FINAL DATASET: TESTING AREA ####
@@ -2172,12 +2200,12 @@ plan_curve_test = raster(paste0(test_wd, "Environmental/Plan_Curve.asc"))
 bpi_fine_test = raster(paste0(test_wd, "Environmental/BPI_Fine.asc"))
 bpi_broad_test = raster(paste0(test_wd, "Environmental/BPI_Broad.asc"))
 rugosity_test = raster(paste0(test_wd, "Environmental/Rugosity.asc"))
-sum_temp_test = raster(paste0(test_wd, "Environmental/Sum_Temp.asc"))
-sum_do_test = raster(paste0(test_wd, "Environmental/Sum_DO.asc"))
-sum_sal_test = raster(paste0(test_wd, "Environmental/Sum_Sal.asc"))
-win_temp_test = raster(paste0(test_wd, "Environmental/Win_Temp.asc"))
-win_do_test = raster(paste0(test_wd, "Environmental/Win_DO.asc"))
-win_sal_test = raster(paste0(test_wd, "Environmental/Win_Sal.asc"))
+sum_temp_test = raster(paste0(test_wd, "Environmental/Mean_Sum_Temp.asc"))
+sum_do_test = raster(paste0(test_wd, "Environmental/Mean_Sum_DO.asc"))
+sum_sal_test = raster(paste0(test_wd, "Environmental/Mean_Sum_Sal.asc"))
+win_temp_test = raster(paste0(test_wd, "Environmental/Mean_Win_Temp.asc"))
+win_do_test = raster(paste0(test_wd, "Environmental/Mean_Win_DO.asc"))
+win_sal_test = raster(paste0(test_wd, "Environmental/Mean_Win_Sal.asc"))
 
 # define crs
 crs(habitat_test) = my_crs
@@ -2209,17 +2237,14 @@ lg_test = cbind(lg_occ_test, raster::extract(env_test, lg_coords_test))
 lg_test$Habitat = factor(lg_test$Habitat) # convert habitat to factor
 # re-label response variable (1 = presence, 0 = absence) & convert to
 # factor, otherwise caret will return errors later
-lg_test$PRES[lg_test$PRES == 1] = "PRESENCE"
-lg_test$PRES[lg_test$PRES == 0] = "ABSENCE"
-lg_test$PRES = as.factor(lg_test$PRES)
-write.csv(lg_test, paste0(csv_wd, "Gray_Snapper_Testing_Data.csv"), row.names = F)
+lg_test$PRES = as.factor(ifelse(lg_test$PRES == 1, "PRESENCE", "ABSENCE"))
+
+write.csv(lg_test, paste0(csv_wd, "Subadult_Gray_Snapper_Testing_Data.csv"), row.names = F)
 
 
 hs_test = cbind(hs_occ_test, raster::extract(env_test, hs_coords_test)) 
 hs_test$Habitat = factor(hs_test$Habitat) # convert habitat to factor
 # re-label response variable (1 = presence, 0 = absence) & convert to
 # factor, otherwise caret will return errors later
-hs_test$PRES[hs_test$PRES == 1] = "PRESENCE"
-hs_test$PRES[hs_test$PRES == 0] = "ABSENCE"
-hs_test$PRES = as.factor(hs_test$PRES)
-write.csv(hs_test, paste0(csv_wd, "Bluestriped_Grunt_Testing_Data.csv"), row.names = F)
+hs_test$PRES = as.factor(ifelse(hs_test$PRES == 1, "PRESENCE", "ABSENCE"))
+write.csv(hs_test, paste0(csv_wd, "Subadult_Bluestriped_Grunt_Testing_Data.csv"), row.names = F)
