@@ -151,7 +151,7 @@ system.file("java", package = "dismo")
 bias = raster(paste0(train_wd, "Occurrences/bias.asc"))
 crs(bias) = my_crs
 
-# how many possible background (pseudo-absence) points are available? 
+# how many possible background points are available? 
 length(which(!is.na(values(subset(env2, 1)))))
 
 # study domain is very large, so select 10,000 background points (the base settings for MaxEnt)
