@@ -1893,8 +1893,8 @@ rm(list = c("habitat_train", "train_grid", "train_parts"))
 #### KRIGING: TESTING AREA ####
 # habitat raster as a guide for kriging
 # here it is if you need to reload it
-habitat_test = raster(paste0(test_wd, "Environmental/Habitat.asc")) 
-crs(habitat_test) = my_crs
+# habitat_test = raster(paste0(test_wd, "Environmental/Habitat.asc")) 
+# crs(habitat_test) = my_crs
 
 # create prediction grid for testing area
 test_grid = raster(ncol = ncol(habitat_test),
@@ -1907,7 +1907,7 @@ test_grid = raster(ncol = ncol(habitat_test),
 proj4string(test_grid) = proj4string(my_crs) # assign projection 
 
 # testing area rasters are larger than training area rasters, if doParallel 
-# throws errors about nodes not having enough memory, reduce no_cores to 15
+# throws errors about nodes not having enough memory, reduce no_cores 
 # so that each core has more space to work with
 
 ### winter temperature ####
