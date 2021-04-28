@@ -1,0 +1,39 @@
+"","Variable","Coefficient","Species","Odds_Ratio"
+"1","Intercept",-1.13576991367759,"Lutjanus griseus",0.321174749286675
+"2","Scattered Coral/Rock",-0.0913760842391072,"Lutjanus griseus",0.912674403888395
+"3","Continuous Seagrass",0,"Lutjanus griseus",1
+"4","Discontinuous Seagrass",-0.14543965869063,"Lutjanus griseus",0.864642062134038
+"5","Unconsolidated Sediment",0,"Lutjanus griseus",1
+"6","Aggregate Reef",0,"Lutjanus griseus",1
+"7","Pavement",-0.218071003508332,"Lutjanus griseus",0.804068347966013
+"8","Reef Rubble",-0.235417076473404,"Lutjanus griseus",0.790241189878238
+"9","Mangrove",-0.00655962055308205,"Lutjanus griseus",0.993461846792956
+"10","Mangrove Distance",-0.377687371487723,"Lutjanus griseus",0.685444756747396
+"11","Depth",-0.709657278610595,"Lutjanus griseus",0.491812723320471
+"12","Slope",0,"Lutjanus griseus",1
+"13","Curvature",0,"Lutjanus griseus",1
+"14","Rugosity",-0.0608222742771159,"Lutjanus griseus",0.94099046312591
+"15","BPI Broad",0,"Lutjanus griseus",1
+"16","BPI Fine",0.130101630292577,"Lutjanus griseus",1.13894412866793
+"17","Summer Temperature",0.350742270039265,"Lutjanus griseus",1.42012127094316
+"18","Summer Salinity",0,"Lutjanus griseus",1
+"19","Winter Salinity",0.107663222716348,"Lutjanus griseus",1.11367262258288
+"20","Intercept",-1.36824406678297,"Haemulon sciurus",0.254553546377329
+"21","Scattered Coral/Rock",-0.0021671646284419,"Haemulon sciurus",0.997835181977355
+"22","Continuous Seagrass",0,"Haemulon sciurus",1
+"23","Discontinuous Seagrass",-0.308766270440893,"Haemulon sciurus",0.734352389829476
+"24","Unconsolidated Sediment",-0.152246541251904,"Haemulon sciurus",0.858776530798639
+"25","Aggregate Reef",-0.113300314325103,"Haemulon sciurus",0.892882474450322
+"26","Pavement",-0.374102154553008,"Haemulon sciurus",0.687906635444659
+"27","Reef Rubble",-0.242502117789029,"Haemulon sciurus",0.784662085828206
+"28","Mangrove",-0.213219711609306,"Haemulon sciurus",0.80797859543572
+"29","Mangrove Distance",0,"Haemulon sciurus",1
+"30","Depth",-0.804939890497384,"Haemulon sciurus",0.447114801599962
+"31","Slope",0.203391694903299,"Haemulon sciurus",1.22555241688006
+"32","Curvature",-0.00155780038175252,"Haemulon sciurus",0.998443412359444
+"33","Rugosity",-0.0351458312591624,"Haemulon sciurus",0.965464611071008
+"34","BPI Broad",-0.249975958817006,"Haemulon sciurus",0.778819506588613
+"35","BPI Fine",0.0624528060990204,"Haemulon sciurus",1.06444422245721
+"36","Summer Temperature",0.0348283707108015,"Haemulon sciurus",1.03544198137717
+"37","Summer Salinity",0.105940816091829,"Haemulon sciurus",1.11175607648986
+"38","Winter Salinity",1.89175338194985,"Haemulon sciurus",6.63098514367969
