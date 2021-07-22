@@ -3,7 +3,7 @@
 # in the lab of Dr. Stephanie Green at the University of Alberta. Data are 
 # specific to southern Florida and include: benthic habitat classifications, 
 # bathymetric and topographic surfaces, georeferenced reef fish occurrence 
-# records, and seasonal bottom water conditions. These data were used for habitat
+# records, and bottom water conditions. These data were used for habitat
 # suitability modeling, using penalized logistic regression and maximum entropy
 # techniques.
 
@@ -100,12 +100,12 @@ tm_shape(parks_union) +
 # have an outline now of the parks' outer borders, so remove temporary data
 rm(list = c("fknms", "bnp", "nps", "fill_gaps"))
 
-# load habitat data from the Unified Reef Tract Map (URM)
+# load habitat data from Unified Reef Tract Map (URM)
 # (https://myfwc.com/research/gis/regional-projects/unified-reef-map/)
 require(rgdal)
 fgdb = paste0(source_wd, "Unified_Reef_Map/FWC_UnifiedFloridaReefMap_v2.0.gdb")
 
-# List all feature classes in the file geodatabase
+# List all feature classes in file geodatabase
 subset(ogrDrivers(), grepl("GDB", name)) 
 fc_list = ogrListLayers(fgdb) 
 print(fc_list) 
@@ -116,7 +116,7 @@ reef_map = st_read(dsn = fgdb,layer = "UnifiedReefMap") %>%
   st_transform(., my_crs)
 compareCRS(reef_map, my_crs) # check projection to be sure
 
-# check benthic habitat classes (Level 1)
+# check benthic habitat classes
 unique(reef_map$ClassLv1) 
 
 # create IDs because MaxEnt requires categorical variables to be defined 
@@ -239,7 +239,7 @@ gdalUtils::gdalwarp(srcfile = paste0(temp_wd, "dem_mosaic.tif"), # mosaic DEM
 # re-load the projected DEM
 dem_proj = raster(paste0(temp_wd, "dem_mosaic_proj.tif"))
 
-# the projected DEM still stores depth data in Z-units US feet, convert to meters
+# the projected DEM still stores depth data in units US feet, convert to meters
 dem_proj = dem_proj * 0.304801  # (1 ft = 0.304801 m)
 dem_proj = raster::setMinMax(dem_proj) # calculate and save min-max values
 dem_proj # check attributes
@@ -254,9 +254,9 @@ pal2 = pnw_palette("Winter", n = 100, "continuous")
 plot(dem_proj1, col = pal2)
 
 # the DEM data will be used in ArcGIS with the Benthic Terrain Modeler
-# extension to calculate metrics of seafloor surface morphology -- the rugosity 
-# and slope tools will require the FULL DEM (projected mosaic) rather than the 
-# clipped DEMs because these tools do NOT respect ArcGIS' environment settings
+# extension to calculate seafloor surface morphometrics -- the rugosity and slope
+# tools will require the FULL DEM (projected mosaic) rather than the clipped 
+# DEMs because these tools do NOT respect ArcGIS' environment settings
 writeRaster(dem_proj1, paste0(dem_wd, "Full_Mosaic_DEM.tif"), format = "GTiff",
             overwrite = T)
 
@@ -302,7 +302,7 @@ habitat = raster::mask(raster::crop(habitat, extent(clip)), clip)
 crs(habitat) = my_crs
 
 # write out data - need to use ArcGIS' Benthic Terrain Modeler extension to 
-# calculate seascape morphology metrics from the depth raster (*remember, the
+# calculate seascape topography metrics from the depth raster (*remember, the
 # slope and rugosity tools will require the FULL DEM in the source DEM folder*)
 # MaxEnt requires ascii format
 writeRaster(depth, file = file.path(spatial_wd, "Depth.asc"), 
@@ -330,7 +330,7 @@ polygonize(srcfile = paste0(temp_wd, "Constant_Hab_Ras.tif"),
            dstfile = file.path(temp_wd, "Constant_Hab_Shp.shp"), 
            ogr_format ='ESRI Shapefile', connect8 = F)
 
-# this simple, constant-value habitat raster converted to a shapefile 
+# This simple, constant-value habitat raster converted to a shapefile 
 # represents our study domain
 domain = st_read(dsn = paste0(temp_wd, "Constant_Hab_Shp.shp")) %>%
   st_transform(., my_crs)
@@ -599,7 +599,7 @@ lg_subadult_abs = lg %>%
   group_by(Site, LAT_DEGREES, LON_DEGREES, SPECIES_CD) %>%
   filter(!(MIN_TOT_LEN >= 9.51 & MIN_TOT_LEN <= 24.71) | (MAX_TOT_LEN >= 9.51 & MAX_TOT_LEN <= 24.71)) %>%
   distinct(Site, LAT_DEGREES, LON_DEGREES) %>%
-  add_column("N" = 0) %>% # assign 0 because these are NOT subadults
+  add_column("N" = 0) %>% # assign 0 because these are NOT sub-adults
   ungroup()
 lg_subadult_abs$LIFE_STAGE = rep("SUBADULT", nrow(lg_subadult_abs))
 lg_subadult_abs$PRES = ifelse(lg_subadult_abs$N > 0, 1, 0) 
@@ -743,7 +743,7 @@ hs_adult$LIFE_STAGE = rep("ADULT", nrow(hs_adult)) # specify that these are all 
 hs_adult$PRES = ifelse(hs_adult$N > 0, 1, 0) # if at least one adult was seen at the SSU, it's a presence [1], else an absence [0]
 hs_adult$SOURCE = rep("REEF VISUAL CENSUS", nrow(hs_adult)) # source column for when RVC and MG data are compiled
 
-# now the inferred absences sites (sites where either no bluestriped grunts 
+# now the inferred absences sites (sites where either no gray bluestriped grunts 
 # were seen or only those of another age class were seen)
 hs_adult_abs = rvc %>%
   group_by(REGION, STRAT, PRIMARY_SAMPLE_UNIT, STATION_NR, LAT_DEGREES, LON_DEGREES, SPECIES_CD) %>%
@@ -977,7 +977,7 @@ hs_adult_clip = full_join(hs_adult_rvc, hs_adult_mg) %>%
 hs_adult_clip = hs_adult_clip[domain, ]
 compareCRS(hs_adult_clip, my_crs) # just to be sure
 
-# subadults
+# sub-adults
 hs_subadult_clip = full_join(hs_subadult_rvc, hs_subadult_mg) %>%
   select(SPECIES_CD, LON_DEGREES, LAT_DEGREES, LIFE_STAGE, PRES, N, SOURCE) %>%
   st_as_sf(., coords = c(2, 3), crs = gcs) %>% # convert to spatial (lon, lat)
@@ -1038,8 +1038,8 @@ st_write(hs_juvenile_clip %>%
          dsn = paste0(fish_wd, "Presence_Only/Juvenile_Bluestriped_Grunt_PO_Full.csv"), 
          append = FALSE)
 
-# create sampling effort raster to parse out sampling bias from MaxEnt predictions: 
-# rule of thumb for selecting bandwidth according to Scott (1992) and Bowman and Azzalini (1997)
+# create sampling effort raster to parse out sampling bias: rule of thumb for 
+# selecting bandwidth according to Scott (1992) and Bowman and Azzalini (1997)
 choose_bw = function(spdf) {
   X = coordinates(spdf)
   sigma = c(sd(X[,1]), sd(X[,2])) * (2 / (3 * nrow(X))) ^ (1/6)
@@ -1055,16 +1055,16 @@ sampling_effort = sampling_effort[domain, ] %>%
 
 # create a template grid using the habitat raster as a guide
 domain_grid = raster(ncol = ncol(habitat), nrow = nrow(habitat), 
-                    xmn = xmin(habitat), xmx = xmax(habitat), 
-                    ymn = ymin(habitat), ymx = ymax(habitat))
+                     xmn = xmin(habitat), xmx = xmax(habitat), 
+                     ymn = ymin(habitat), ymx = ymax(habitat))
 domain_grid[] <- rep(1,ncell(domain_grid))
 domain_bw = choose_bw(sampling_effort)
 
 # calculate kernel density surface
 domain_kde = sp.kde(x = sampling_effort,
-                   bw = domain_bw,
-                   newdata = domain_grid,
-                   standardize = T)
+                    bw = domain_bw,
+                    newdata = domain_grid,
+                    standardize = T)
 tm_shape(domain_kde) + tm_raster() 
 domain_kde = raster::mask(raster::crop(domain_kde, habitat), habitat)
 compareRaster(domain_kde, habitat, extent = T, crs = T, rowcol = T)
@@ -1131,7 +1131,7 @@ bb_temp = bb_temp %>%
                       labels = c("winter", "spring", "summer", "fall"))) %>%
   select(BASIN, SITE, YEAR, MONTH, DAY, SEASON, X_COORD, Y_COORD, TEMP)
 
-# BBWQ salinity data
+# BBWQ saliniy data
 bb_sal = read.csv(paste0(source_wd, "Water_Conditions/BBWQ_Salinity.csv"))
 head(bb_sal, 5)
 
@@ -1357,7 +1357,7 @@ sum_wqmn = wqmn %>%
   distinct(BASIN, SITE, LON_M, LAT_M, MEAN_SUM_TEMP, SD_SUM_TEMP,
            MEAN_SUM_SAL, SD_SUM_SAL, MEAN_SUM_DO, SD_SUM_DO)
 
-# annual mean temps, sal, do for Biscayne Bay
+# annual mean temps, sal, do for biscayne bay
 sum_bb_temp = bb_temp %>%
   filter(SEASON == "summer") %>%
   group_by(SITE, X_COORD, Y_COORD, YEAR) %>% # annual means (a mean for each year)
@@ -1552,7 +1552,7 @@ crs(w_temp) = my_crs
 extent = extent(raster(paste0(spatial_wd, "Habitat.asc")))
 w_temp2 = extend(w_temp, extent)
 w_temp2
-writeRaster(w_temp2, filename = paste0(spatial_wd, "Mean_Win_Temp.asc"), 
+writeRaster(w_temp2, filename = paste0(spatial_wd, "Mean_win_Temp.asc"), 
             format = "ascii", overwrite = T)
 
 # winter salinity

@@ -164,7 +164,7 @@ crs(bias) = my_crs
 # study domain is very large, so select 10,000 background points 
 # (the base settings for MaxEnt)
 bg = as.data.frame(xyFromCell(bias, sample(which(!is.na(values(subset(env2, 1)))), 10000,
-                             prob = values(bias)[!is.na(values(subset(env2, 1)))])))
+                                           prob = values(bias)[!is.na(values(subset(env2, 1)))])))
 bg = bg %>% dplyr::rename(LON_M = x, LAT_M = y)
 write.csv(bg, paste0(temp_wd, "Background_Points.csv"), row.names = FALSE)
 
@@ -174,25 +174,36 @@ write.csv(bg, paste0(temp_wd, "Background_Points.csv"), row.names = FALSE)
 enm_wd = "Z:/Courtney/Stuart_MSc_Ch1/ENMevaluate/"
 
 lg_pres_only = read.csv(paste0(fish_wd, "Presence_Only/Subadult_Gray_Snapper_PO_Train.csv"))[,-1]
-lg_enm_eval = ENMevaluate(occs = lg_pres_only,
-                          envs = env2,
-                          bg = bg,
-                          tune.args = list(fc = c("L", "LQ", "LQH", "LQHP"),
-                                           rm = c(0.25, 0.50, 1.0, 2.0, 5.0)),
-                          partitions = "randomkfold", 
-                          algorithm = "maxent.jar",
-                          partition.settings = list(kfolds = 10),
-                          categoricals = "Habitat", 
-                          parallel = TRUE, 
-                          parallelType = "doParallel",
-                          numCores = no_cores,
-                          progbar = TRUE)
+lg_enm_eval = ENMevaluate(lg_pres_only, env2, method = "randomkfold", kfolds = 10,
+                          categoricals = 1, algorithm = 'maxent.jar', bg.coords = bg,
+                          RMvalues = c(0.25, 0.50, 1.0, 2.0, 5.0),
+                          fc = c("L", "LQ", "LQH", "LQHP"), 
+                          parallel = TRUE, numCores = no_cores, progbar = TRUE,
+                          updateProgress = TRUE)
 write.csv(lg_enm_eval@results, paste(enm_wd, "Subadult_Gray_Snapper_ENMeval.csv"))
-rm(lg_enm_eval)
 
-hs_pres_only = read.csv(paste0(train_wd, "Occurrences/Presence_Only/Subadult_Bluestriped_Grunt_PO_Train.csv"))[,-1]
+hs_pres_only = read.csv(paste0(fish_wd, "Presence_Only/Subadult_Bluestriped_Grunt_PO_Train.csv"))[,-1]
 hs_enm_eval = ENMevaluate(hs_pres_only, env2, method = "randomkfold", kfolds = 10,
                           categoricals = 1, algorithm = 'maxent.jar', bg.coords = bg,
-                          RMvalues = c(0.25, 0.50, 1.00, 1.50, 2.00, 5.00),
-                          fc = c("L", "LQ", "H", "LQH", "LQHP", "LQHPT"), parallel = TRUE, numCores = 15)
-write.csv(hs_enm_eval@results, paste(enm_wd, "hs_enmeval_results.csv"))
+                          RMvalues = c(0.25, 0.50, 1.0, 2.0, 5.0),
+                          fc = c("L", "LQ", "LQH", "LQHP"), 
+                          parallel = TRUE, numCores = no_cores, progbar = TRUE,
+                          updateProgress = TRUE)
+write.csv(hs_enm_eval@results, paste(enm_wd, "Subadult_Bluestriped_Grunt_ENMeval.csv"))
+
+
+#lg_enm_eval = ENMevaluate(occs = lg_pres_only,
+#                         envs = env2,
+#                        bg = bg,
+#                       tune.args = list(fc = c("L", "LQ", "LQH", "LQHP"),
+#                                       rm = c(0.25, 0.50, 1.0, 2.0, 5.0)),
+#                     partitions = "randomkfold", 
+#                    algorithm = "maxent.jar",
+#                   partition.settings = list(kfolds = 10),
+#                  categoricals = "Habitat", 
+#                 parallel = TRUE, 
+#                parallelType = "doParallel",
+#               numCores = no_cores,
+#              progbar = TRUE)
+# write.csv(lg_enm_eval@results, paste(enm_wd, "Subadult_Gray_Snapper_ENMeval.csv"))
+# rm(lg_enm_eval)

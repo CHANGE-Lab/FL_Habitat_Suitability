@@ -42,7 +42,7 @@ conflicted::conflict_prefer("filter", "dplyr")
 conflicted::conflict_prefer("makeCluster", "parallel")
 conflicted::conflict_prefer("stopCluster", "parallel")
 
-# save PROJ.4 string for standard projection (ESPG:26958 NAD 83/Florida East) 
+# save PROJ.4 string for standard projection (ESPG:26958 NAD 83/Florida East) and source LAT/LON data (EPSG:4326 WGS 84/World Geodetic System 1984)
 my_crs = CRS("+init=epsg:26958")
 
 # extract data values from the 12 spatial predictors at the point locations
@@ -53,7 +53,7 @@ lg_occ = read.csv(paste0(fish_wd, "Presence_Absence/Subadult_Gray_Snapper_PA_Ful
 lg_coords = lg_occ %>% dplyr::select(LON_M, LAT_M) %>%
   st_as_sf(., coords = c("LON_M", "LAT_M"), crs = my_crs)
 
-# subadult bluestriped grunt (Haemulon sciurus)
+# sub-adult bluestriped grunt
 hs_occ = read.csv(paste0(fish_wd, "Presence_Absence/Subadult_Bluestriped_Grunt_PA_Full.csv"))
 hs_coords = hs_occ %>% dplyr::select(LON_M, LAT_M) %>%
   st_as_sf(., coords = c("LON_M", "LAT_M"), crs = my_crs)
@@ -101,8 +101,7 @@ lg_full = as.data.frame(lg_full) %>%
 lg_full$PRES2 = as.factor(ifelse(lg_full$PRES == 1, "PRESENCE", "ABSENCE"))
 lg_full = lg_full %>% relocate(PRES2, .after = PRES)
 # save data frame to csv
-write.csv(lg_full, paste0(csv_wd, "Subadult_Gray_Snapper_Full_Dataset.csv"), 
-          row.names = F)
+write.csv(lg_full, paste0(csv_wd, "Subadult_Gray_Snapper_Full_Dataset.csv"), row.names = F)
 
 # repeat for sub-adult bluestriped grunts
 hs_full = cbind(hs_occ, raster::extract(env, hs_coords))
@@ -154,7 +153,6 @@ write.csv((hs_test %>%
           paste0(fish_wd, "Presence_Only/Subadult_Bluestriped_Grunt_PO_Test.csv"), 
           row.names = F)
 
-
 # keep only what is needed for logistic regression via caret
 lg_train = lg_train %>% dplyr::select(PRES2, Habitat, Mangrove_Dist, Depth, Slope, 
                                       Curvature, BPI_Fine, BPI_Broad, Rugosity,
@@ -200,7 +198,7 @@ lg_glm = caret::train(PRES2 ~ ., lg_train, method = "glm", family = "binomial",
 # ROC, sensitivity, and specificity (*NOTE* caret uses absence as a reference 
 # class, so sensitivity is for absence & specificity is for presence here)
 lg_glm$levels # absence first, so that's specificity
-lg_glm  
+lg_glm 
 
 # coefficients, deviance, and AIC, where coefficients characterize the relationship 
 # between the predictors and species presence on a log-odds scale
@@ -290,7 +288,6 @@ lg_lasso_CM = confusionMatrix(data = lg_lasso_pred, reference = lg_test$PRES,
                               positive = "PRESENCE")
 lg_lasso_CM 
 
-
 #### Ridge Regularization ####
 # L2 regularization (alpha = 0) that performs shrinkage by minimizing the sum of
 # the squared coefficients. Unlike lasso, the coefficients in ridge regression can
@@ -341,7 +338,6 @@ lg_ridge_pred = predict(lg_ridge, newdata = lg_test)
 lg_ridge_CM = confusionMatrix(data = lg_ridge_pred, reference = lg_test$PRES,
                               positive = "PRESENCE")
 lg_ridge_CM 
-
 
 #### BLUESTRIPED GRUNT MODELS ####
 #### Standard Logistic Regression ####
@@ -494,7 +490,7 @@ round(max(hs_glm[["results"]]$ROC), digits = 2) # 0.75
 round(max(hs_lasso[["results"]]$ROC), digits = 2) # 0.76
 round(max(hs_ridge[["results"]]$ROC), digits = 2) # 0.75
 
-#### REGRESSION COEFFICIENT PLOTS ####
+#### REGRESSION COEFFICIENTS ####
 # look at one of the dgC matrices to find out the order of predictors
 coef(lg_lasso$finalModel, lg_lasso$bestTune$lambda) 
 
@@ -535,6 +531,7 @@ colnames(hs_ridge_coef) = c("Variable", "Coefficient")
 hs_ridge_coef$Species = rep("Haemulon sciurus", nrow(hs_ridge_coef))
 hs_ridge_coef$Life_Stage = rep("Subadult", nrow(hs_ridge_coef))
 
+
 # combine lasso coefficients for both species, repeat for ridge
 lasso_coef = rbind(lg_lasso_coef, hs_lasso_coef)
 ridge_coef = rbind(lg_ridge_coef, hs_ridge_coef)
@@ -555,7 +552,7 @@ write.csv(lasso_coef, paste0(csv_wd, "Subadult_Lasso_Coefficients.csv"), row.nam
 write.csv(ridge_coef, paste0(csv_wd, "Subadult_Ridge_Coefficients.csv"), row.names = FALSE)
 
 # create a color palette for plotting coefficients
-my_pal = pnw_palette("Bay", 8)
+my_pal = pnw_palette("Bay",8)
 my_pal
 
 # lasso coefficients plot
@@ -564,24 +561,17 @@ lasso_coef_plot = ggplot(data = lasso_coef, aes(x = Coefficient, y = Variable,
   geom_vline(xintercept = 0, color = "gray") + geom_point(aes(color = Species)) +
   scale_color_manual(values = c(my_pal[1], my_pal[5])) +
   scale_fill_manual(values = c(my_pal[1], my_pal[5])) +
-  labs(y = "", x = "Lasso regression coefficient") + xlim(-2, 2)  +
-  scale_y_discrete(limits = c("Intercept", "Winter Salinity", "Winter Temperature", 
-                              "Summer Salinity", "Summer Temperature", "Rugosity",
-                              "BPI Broad", "BPI Fine", "Curvature", "Slope", 
-                              "Depth", "Mangrove Distance", "Mangrove",
-                              "Reef Rubble", "Pavement", "Aggregate Reef", 
-                              "Unconsolidated Sediment", "Discontinuous Seagrass",
-                              "Continuous Seagrass", "Scattered Coral/Rock")) +
-  theme_bw() + theme(legend.position = "top", 
-                     legend.title = element_blank(),
-                     panel.border = element_rect(color = "black"), 
-                     panel.grid.major = element_blank(), 
-                     panel.grid.minor = element_blank(),
-                     legend.text = element_text(face = "italic", size = 8),
-                     legend.margin = margin(0,0,0,0), 
-                     plot.margin = margin(c(0,0,0,0)),
-                     axis.text = element_text(size = 8), 
-                     axis.title.x = element_text(size = 10),
+  labs(y = "", x = "Lasso regression coefficient") + xlim(-2,2)  +
+  scale_y_discrete(limits = c("Intercept", "Winter Salinity", "Winter Temperature", "Summer Salinity", 
+                              "Summer Temperature", "Rugosity", "BPI Broad", "BPI Fine",
+                              "Curvature", "Slope", "Depth", "Mangrove Distance", "Mangrove",
+                              "Reef Rubble", "Pavement", "Aggregate Reef", "Unconsolidated Sediment",
+                              "Discontinuous Seagrass", "Continuous Seagrass", "Scattered Coral/Rock")) +
+  theme_bw() + theme(legend.position = "top", legend.title = element_blank(),
+                     panel.border = element_rect(color = "black"), panel.grid.major = element_blank(),
+                     panel.grid.minor = element_blank(), legend.text = element_text(face = "italic", size = 8),
+                     legend.margin = margin(0,0,0,0), plot.margin = margin(c(0,0,0,0)),
+                     axis.text = element_text(size = 8), axis.title.x = element_text(size = 10),
                      legend.box.margin=margin(t = 0, r = 0, b = -10, l = 0))
 lasso_coef_plot
 
@@ -591,31 +581,23 @@ ridge_coef_plot = ggplot(data = ridge_coef, aes(x = Coefficient, y = Variable,
   geom_vline(xintercept = 0, color = "gray") + geom_point(aes(color = Species)) +
   scale_color_manual(values = c(my_pal[1], my_pal[5])) +
   scale_fill_manual(values = c(my_pal[1], my_pal[5])) +
-  labs(y = "", x = "Ridge regression coefficient") + xlim(-2, 2) +
-  scale_y_discrete(limits = c("Intercept", "Winter Salinity", "Winter Temperature",
-                              "Summer Salinity", "Summer Temperature", "Rugosity",
-                              "BPI Broad", "BPI Fine", "Curvature", "Slope", 
-                              "Depth", "Mangrove Distance", "Mangrove",
-                              "Reef Rubble", "Pavement", "Aggregate Reef", 
-                              "Unconsolidated Sediment", "Discontinuous Seagrass",
-                              "Continuous Seagrass", "Scattered Coral/Rock")) +
-  theme_bw() + theme(legend.position = "top", 
-                     legend.title = element_blank(),
-                     panel.border = element_rect(color = "black"),
-                     panel.grid.major = element_blank(),
-                     panel.grid.minor = element_blank(),
-                     legend.text = element_text(face = "italic", size = 8),
-                     legend.margin = margin(0,0,0,0),
-                     plot.margin = margin(c(0,0,0,0)),
-                     axis.text = element_text(size = 8), 
-                     axis.title.x = element_text(size = 10),
+  labs(y = "", x = "Ridge regression coefficient") + xlim(-2,2) +
+  scale_y_discrete(limits = c("Intercept", "Winter Salinity", "Winter Temperature", "Summer Salinity", 
+                              "Summer Temperature", "Rugosity", "BPI Broad", "BPI Fine",
+                              "Curvature", "Slope", "Depth", "Mangrove Distance", "Mangrove",
+                              "Reef Rubble", "Pavement", "Aggregate Reef", "Unconsolidated Sediment",
+                              "Discontinuous Seagrass", "Continuous Seagrass", "Scattered Coral/Rock")) +
+  theme_bw() + theme(legend.position = "top", legend.title = element_blank(),
+                     panel.border = element_rect(color = "black"), panel.grid.major = element_blank(),
+                     panel.grid.minor = element_blank(), legend.text = element_text(face = "italic", size = 8),
+                     legend.margin = margin(0,0,0,0), plot.margin = margin(c(0,0,0,0)),
+                     axis.text = element_text(size = 8), axis.title.x = element_text(size = 10),
                      legend.box.margin = margin(t = 0, r = 0, b = -10, l = 0))
 ridge_coef_plot
 
 # make a second ridge figure without the legend so it can be placed below the 
 # lasso plot in a single figure (cowplot)
-ridge_coef_plot2 = ridge_coef_plot + theme(legend.position = "none",  
-                                           plot.margin = margin(c(t = 8,0,b = 5,0)))
+ridge_coef_plot2 = ridge_coef_plot + theme(legend.position = "none",  plot.margin = margin(c(t = 8,0,b = 5,0)))
 
 # cowplot with both coefficient plots
 coef_grid = plot_grid(lasso_coef_plot, ridge_coef_plot2, nrow = 2)
@@ -625,15 +607,13 @@ ggsave(plot = lasso_coef_plot, filename = paste0(temp_plots,
                                                  "Subadult_Lasso_Coefficients.png"),
        height = 3.15, width = 5, units = "in", dpi = 450)
 
-ggsave(plot = ridge_coef_plot, filename = paste0(temp_plots, 
-                                                 "Subadult_Ridge_Coefficients.png"),
-       height = 3.15, width = 5, units = "in", dpi = 450)
+ggsave(plot = ridge_coef_plot, filename = paste0(temp_plots, "Subadult_Ridge_Coefficients.png"), height = 3.15, 
+       width = 5, units = "in", dpi = 450)
 
-ggsave(plot = coef_grid, filename = paste0(temp_plots, 
-                                           "Subadult_Regression_Coefficients_Grid.png"),
-       height = 5, width = 5, units = "in", dpi = 450)
+ggsave(plot = coef_grid, filename = paste0(temp_plots, "Subadult_Regression_Coefficients_Grid.png"), height = 5, 
+       width = 5, units = "in", dpi = 450)
 
-#### VARIABLE IMPORTANCE PLOTS ####
+#### VARIABLE IMPORTANCE ####
 
 lg_lasso_vimp = caret::varImp(lg_lasso, lambda = lg_lasso$bestTune$lambda)$importance
 lg_lasso_vimp # check order of variables 
@@ -832,11 +812,12 @@ ggsave(plot = ridge_top5_plot, filename = paste0(temp_plots, "Subadult_Ridge_Top
 # folder path for regression habitat suitability rasters
 HSMs = "E:/Stuart_MSc_Ch1/HSMs/Logistic_Regression/"
 
-# make suitability predictions across entire study area using the fitted models 
-# FYI: very time consuming step
+# make suitability predictions across entire study area
+# FYI: very time consuming step, each model can take upwards of 10 hours to build
+library(snow)
 library(doParallel)
 
-# make sure raster stack layer names match model variables
+# make sure raster stack layer names match lasso model variables
 names(env)
 lg_lasso$coefnames
 
@@ -881,6 +862,7 @@ predict(env, hs_ridge, type = "prob", index = 2, progress = "window",
         filename = paste0(HSMs, "Subadult_Bluestriped_Grunt_Ridge.asc"),
         format = "ascii", overwrite = TRUE, na.rm = TRUE)
 stopCluster(cl)
+
 
 #### MAX SSS TRAINING THRESHOLD ####
 # the default 50% suitability cut-off is arbitrary, let's instead find the threshold
