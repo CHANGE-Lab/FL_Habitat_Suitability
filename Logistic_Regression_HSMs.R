@@ -1,14 +1,26 @@
+#### DESCRIPTION ####
 # This script is part of Courtney Stuart's first MSc Chapter in the Lab of 
-# Dr. Stephanie Green at the University of Alberta. Data are specific to southern
-# Florida, including the georeferenced occurrence records of two reef fish species
-# (gray snapper Lutjanus griseus (lg) and bluestriped grunt Haemulon sciurus (hs))
-# and rasters of various environmental covariates. Three logistic regression models
-# were fitted for each species to create habitat suitability predictions: standard 
-# logistic regression, lasso-regularized regression, and ridge-regularized regression. 
+# Dr. Stephanie Green at the University of Alberta (2019-2021). Data are specific 
+# to southern Florida, including the georeferenced occurrence records of two reef 
+# fish species (gray snapper Lutjanus griseus (lg) and bluestriped grunt Haemulon 
+# sciurus (hs)) and raster data layers of various environmental predictors. 
+# Three logistic regression models were fit for each species to create habitat 
+# suitability predictions: standard logistic regression, lasso-regularized 
+# regression, and ridge-regularized regression. 
 
+#### TO USE THIS FILE ####
+# (If data are not already provided)
+# First run the Full_Data_Prep.R file located in the FL_Habitat_Suitability 
+# GitHub repository/project, as well as the Seafloor_Morphology geoprocessing 
+# model stored in the accompanying Stuart_MSc_Ch1.gdb ArcGIS geodatabase. These 
+# two steps are required to create the data used for modeling below. Then, run
+# the Collinearity_ENMEval.R file to assess collinearity among the 16 available
+# spatial predictors. Finally, return to this file and run. 
+
+#### CONTACT ####
+# Courtney Stuart (cestuart@ualberta.ca)
 
 #### SET-UP ####
-
 # working directories
 setwd("Z:/Courtney/Stuart_MSc_Ch1/") # main project folder
 
@@ -18,32 +30,35 @@ csv_wd = "Z:/Courtney/Stuart_MSc_Ch1/GitHub/FL_Habitat_Suitability/Data/" # for 
 fish_wd = "Z:/Courtney/Stuart_MSc_Ch1/Species_Occurrence/" # for fish data
 spatial_wd = "Z:/Courtney/Stuart_MSc_Ch1/Spatial_Predictors/" # for spatial predictor rasters
 gis_wd = "Z:/Courtney/Stuart_MSc_Ch1/GIS_Files/" # for any GIS shapefiles
-plots_wd = "Z:/Courtney/Stuart_MSc_Ch1/GitHub/FL_Habitat_Suitability/Figures/"
-temp_plots = "Z:/Courtney/Stuart_MSc_Ch1/Plots/" # temp plots for Courtney
+plots_wd = "Z:/Courtney/Stuart_MSc_Ch1/GitHub/FL_Habitat_Suitability/Figures/" # final figures
+temp_plots = "Z:/Courtney/Stuart_MSc_Ch1/Plots/" # temp plots for Courtney only
 
 # libraries
 library(easypackages)
 libraries("glmnet", "tidyr", "caret", "MLeval", "dplyr", "raster", 
-          "PNWColors", "cowplot", "sf", "conflicted")
+          "PNWColors", "cowplot", "sf", "conflicted", "parallel", "doParallel")
 conflicted::conflict_prefer("select", "dplyr")
 conflicted::conflict_prefer("filter", "dplyr")
+conflicted::conflict_prefer("makeCluster", "parallel")
+conflicted::conflict_prefer("stopCluster", "parallel")
 
 # save PROJ.4 string for standard projection (ESPG:26958 NAD 83/Florida East) and source LAT/LON data (EPSG:4326 WGS 84/World Geodetic System 1984)
 my_crs = CRS("+init=epsg:26958")
 
 # extract data values from the 12 spatial predictors at the point locations
 # of each presence-absence record (following multicollinearity assessment)
-# subadult gray snapper (Lutjanus griseus)
-lg_occ = read.csv(paste0(fish_wd, "Presence_Absence/Subadult_Gray_Snapper_PA.csv"))
+
+# sub-adult gray snapper (Lutjanus griseus)
+lg_occ = read.csv(paste0(fish_wd, "Presence_Absence/Subadult_Gray_Snapper_PA_Full.csv"))
 lg_coords = lg_occ %>% dplyr::select(LON_M, LAT_M) %>%
   st_as_sf(., coords = c("LON_M", "LAT_M"), crs = my_crs)
 
-# subadult bluestriped grunt
-hs_occ = read.csv(paste0(fish_wd, "Presence_Absence/Subadult_Bluestriped_Grunt_PA.csv"))
+# sub-adult bluestriped grunt
+hs_occ = read.csv(paste0(fish_wd, "Presence_Absence/Subadult_Bluestriped_Grunt_PA_Full.csv"))
 hs_coords = hs_occ %>% dplyr::select(LON_M, LAT_M) %>%
   st_as_sf(., coords = c("LON_M", "LAT_M"), crs = my_crs)
 
-# load environmental rasters 
+# load environmental rasters (only those retained after multicollinearity check)
 habitat = raster(paste0(spatial_wd, "Habitat.asc"))
 mg_dist = raster(paste0(spatial_wd, "Mangrove_Dist.asc"))
 depth = raster(paste0(spatial_wd, "Depth.asc"))
@@ -75,14 +90,12 @@ crs(win_sal) = my_crs
 env = stack(x = c(habitat, mg_dist, depth, slope, curvature, bpi_fine, 
             bpi_broad, rugosity, sum_temp, sum_sal, win_temp, win_sal))
 
-# combine fish records and environmental data
+# combine fish records and environmental data into dataframe
 lg_full = cbind(lg_occ, raster::extract(env, lg_coords)) 
 lg_full = as.data.frame(lg_full) %>%
   mutate(PRES = as.factor(PRES),
          Habitat = as.factor(Habitat))
-names(lg_full)[names(lg_full) == "slope"] = "Slope"
-names(lg_full)[names(lg_full) == "bpi_fine"] = "BPI_Fine"
-names(lg_full)[names(lg_full) == "rugosity"] = "Rugosity"
+
 # re-label response variable (1 = presence, 0 = absence) & convert to
 # factor, otherwise caret will return errors later
 lg_full$PRES2 = as.factor(ifelse(lg_full$PRES == 1, "PRESENCE", "ABSENCE"))
@@ -90,133 +103,152 @@ lg_full = lg_full %>% relocate(PRES2, .after = PRES)
 # save data frame to csv
 write.csv(lg_full, paste0(csv_wd, "Subadult_Gray_Snapper_Full_Dataset.csv"), row.names = F)
 
-# repeat for subadult bluestriped grunts (Haemulon sciurus)
+# repeat for sub-adult bluestriped grunts
 hs_full = cbind(hs_occ, raster::extract(env, hs_coords))
 hs_full = as.data.frame(hs_full) %>%
   mutate(PRES = as.factor(PRES),
          Habitat = as.factor(Habitat))
-names(hs_full)[names(hs_full) == "slope"] = "Slope"
-names(hs_full)[names(hs_full) == "bpi_fine"] = "BPI_Fine"
-names(hs_full)[names(hs_full) == "rugosity"] = "Rugosity"
-# re-label response variable (1 = presence, 0 = absence) & convert to
-# factor, otherwise caret will return errors later
+
+# re-label response variable (1 = presence, 0 = absence) & convert to factor
 hs_full$PRES2 = as.factor(ifelse(hs_full$PRES == 1, "PRESENCE", "ABSENCE"))
 hs_full = hs_full %>% relocate(PRES2, .after = PRES)
 # save data frame to csv
-write.csv(hs_full, paste0(csv_wd, "Subadult_Bluestriped_Grunt_Full_Dataset.csv"), row.names = F)
+write.csv(hs_full, paste0(csv_wd, "Subadult_Bluestriped_Grunt_Full_Dataset.csv"),
+          row.names = F)
 
-# random 70-30% data split for model training and evaluation
+# randomly split data for model calibration and evaluation (70-30%, respectively)
 library(ISLR)
-set.seed(123)   # set seed to ensure you always have same random numbers generated
-lg_train_id = sample(seq_len(nrow(lg_full)),size = floor(0.70*nrow(lg_full)))  # Randomly identifies therows equal to sample size ( defined in previous instruction) from  all the rows of Smarket dataset and stores the row number in train_ind
-lg_train = lg_full[lg_train_id,] #creates the training dataset (70%)
+set.seed(123)   # set seed to ensure repeatability
+lg_train_id = sample(seq_len(nrow(lg_full)), size = floor(0.70*nrow(lg_full)))  
+lg_train = lg_full[lg_train_id,] # creates the training dataset (70%)
 lg_test = lg_full[-lg_train_id,]  # creates the test dataset (30%)
 
-hs_train_id = sample(seq_len(nrow(hs_full)),size = floor(0.70*nrow(hs_full)))  # Randomly identifies therows equal to sample size ( defined in previous instruction) from  all the rows of Smarket dataset and stores the row number in train_ind
-hs_train = hs_full[hs_train_id,] #creates the training dataset (70%)
+hs_train_id = sample(seq_len(nrow(hs_full)), size = floor(0.70*nrow(hs_full)))  
+hs_train = hs_full[hs_train_id,] # creates the training dataset (70%)
 hs_test = hs_full[-hs_train_id,]  # creates the test dataset (30%)
 
 # save training records (presence-only) for MaxEnt
-write.csv((lg_train %>% filter(PRES == 1) %>% select(SPECIES_CD, LON_M, LAT_M)), 
-          paste0(fish_wd, "Presence_Only/Subadult_Gray_Snapper_Train.csv"), row.names = F)
+write.csv((lg_train %>% 
+             filter(PRES == 1) %>% 
+             dplyr::select(SPECIES_CD, LON_M, LAT_M)), 
+          paste0(fish_wd, "Presence_Only/Subadult_Gray_Snapper_PO_Train.csv"), 
+          row.names = F)
 
-write.csv((hs_train %>% filter(PRES == 1) %>% select(SPECIES_CD, LON_M, LAT_M)), 
-          paste0(fish_wd, "Presence_Only/Subadult_Bluestriped_Grunt_Train.csv"), row.names = F)
+write.csv((hs_train %>% 
+             filter(PRES == 1) %>% 
+             dplyr::select(SPECIES_CD, LON_M, LAT_M)), 
+          paste0(fish_wd, "Presence_Only/Subadult_Bluestriped_Grunt_PO_Train.csv"), 
+          row.names = F)
 
 # save testing records (presence-only) for MaxEnt
-write.csv((lg_test %>% filter(PRES == 1) %>% select(SPECIES_CD, LON_M, LAT_M)), 
-          paste0(fish_wd, "Presence_Only/Subadult_Gray_Snapper_Test.csv"), row.names = F)
+write.csv((lg_test %>% 
+             filter(PRES == 1) %>% 
+             dplyr::select(SPECIES_CD, LON_M, LAT_M)), 
+          paste0(fish_wd, "Presence_Only/Subadult_Gray_Snapper_PO_Test.csv"), 
+          row.names = F)
 
-write.csv((hs_test %>% filter(PRES == 1) %>% select(SPECIES_CD, LON_M, LAT_M)), 
-          paste0(fish_wd, "Presence_Only/Subadult_Bluestriped_Grunt_Test.csv"), row.names = F)
+write.csv((hs_test %>% 
+             filter(PRES == 1) %>% 
+             dplyr::select(SPECIES_CD, LON_M, LAT_M)), 
+          paste0(fish_wd, "Presence_Only/Subadult_Bluestriped_Grunt_PO_Test.csv"), 
+          row.names = F)
+
+# keep only what is needed for logistic regression via caret
+lg_train = lg_train %>% dplyr::select(PRES2, Habitat, Mangrove_Dist, Depth, Slope, 
+                                      Curvature, BPI_Fine, BPI_Broad, Rugosity,
+                                      Mean_Sum_Temp, Mean_Sum_Sal, Mean_Win_Temp, 
+                                      Mean_Win_Sal)
+# ensure that absence is the reference class
+lg_train$PRES2 = relevel(lg_train$PRES2, ref = "ABSENCE") 
+
+lg_test = lg_test %>% dplyr::select(PRES2, Habitat, Mangrove_Dist, Depth, Slope, 
+                                    Curvature, BPI_Fine, BPI_Broad, Rugosity,
+                                    Mean_Sum_Temp, Mean_Sum_Sal, Mean_Win_Temp, 
+                                    Mean_Win_Sal)
+lg_test$PRES2 = relevel(lg_test$PRES2, ref = "ABSENCE")
 
 
-# keep what is needed for logistic regression in caret
-lg_train = lg_train %>% select(PRES2, Habitat, Mangrove_Dist, Depth, Slope, 
-                         Curvature, BPI_Fine, BPI_Broad, Rugosity,
-                         Mean_Sum_Temp, Mean_Sum_Sal, Mean_Win_Temp, 
-                         Mean_Win_Sal)
-lg_train$PRES2 = relevel(lg_train$PRES2, ref = "ABSENCE") #  ensure that absence is the reference category
+hs_train = hs_train %>% dplyr::select(PRES2, Habitat, Mangrove_Dist, Depth, Slope, 
+                                      Curvature, BPI_Fine, BPI_Broad, Rugosity,
+                                      Mean_Sum_Temp, Mean_Sum_Sal, Mean_Win_Temp, 
+                                      Mean_Win_Sal)
+hs_train$PRES2 = relevel(hs_train$PRES2, ref = "ABSENCE") 
 
-lg_test = lg_test %>% select(PRES2, Habitat, Mangrove_Dist, Depth, Slope, 
-                               Curvature, BPI_Fine, BPI_Broad, Rugosity,
-                               Mean_Sum_Temp, Mean_Sum_Sal, Mean_Win_Temp, 
-                               Mean_Win_Sal)
-lg_test$PRES2 = relevel(lg_test$PRES2, ref = "ABSENCE") #  ensure that absence is the reference category
+hs_test = hs_test %>% dplyr::select(PRES2, Habitat, Mangrove_Dist, Depth, Slope, 
+                                    Curvature, BPI_Fine, BPI_Broad, Rugosity,
+                                    Mean_Sum_Temp, Mean_Sum_Sal, Mean_Win_Temp, 
+                                    Mean_Win_Sal)
+hs_test$PRES2 = relevel(hs_test$PRES2, ref = "ABSENCE") 
 
-
-hs_train = hs_train %>% select(PRES2, Habitat, Mangrove_Dist, Depth, Slope, 
-                         Curvature, BPI_Fine, BPI_Broad, Rugosity,
-                         Mean_Sum_Temp, Mean_Sum_Sal, Mean_Win_Temp, 
-                         Mean_Win_Sal)
-hs_train$PRES2 = relevel(hs_train$PRES2, ref = "ABSENCE") #  ensure that absence is the reference category
-
-hs_test = hs_test %>% select(PRES2, Habitat, Mangrove_Dist, Depth, Slope, 
-                               Curvature, BPI_Fine, BPI_Broad, Rugosity,
-                               Mean_Sum_Temp, Mean_Sum_Sal, Mean_Win_Temp, 
-                               Mean_Win_Sal)
-hs_test$PRES2 = relevel(hs_test$PRES2, ref = "ABSENCE") #  ensure that absence is the reference category
-
-#### GRAY SNAPPER ####
+#### GRAY SNAPPER MODELS ####
 #### Standard Logistic Regression ####
+
+# set up caret command: 10-fold cross-validation, two classes (presence-absence),
+# calculate class probabilities and save predictions
 trainControl = trainControl(method = "cv", number = 10,
                             summaryFunction = twoClassSummary, 
                             classProbs = TRUE, savePredictions = TRUE)
+
+# standard logistic regression model (no penalty) with Area Under the Receiver
+# Operator Curve (AUC-ROC) set as the test statistic
 lg_glm = caret::train(PRES2 ~ ., lg_train, method = "glm", family = "binomial",
                       trControl = trainControl, metric = "ROC", maximize = TRUE,
                       preProcess = c("center", "scale"), na.action = na.pass)
 
-# ROC, sensitivity, and specificity (RECALL caret uses absence as a reference class,
-# so sensitivity is for absence & specificity is for presence)
+# ROC, sensitivity, and specificity (*NOTE* caret uses absence as a reference 
+# class, so sensitivity is for absence & specificity is for presence here)
+lg_glm$levels # absence first, so that's specificity
 lg_glm 
 
 # coefficients, deviance, and AIC, where coefficients characterize the relationship 
 # between the predictors and species presence on a log-odds scale
 summary(lg_glm) 
 
-exp(coef(lg_glm$finalModel)) # or convert coefficients to odds ratio instead
+# or convert coefficients to odds ratio instead
+exp(coef(lg_glm$finalModel)) 
 
 # plot AUC-ROC Curve for training CV
 lg_glm_eval = evalm(lg_glm, percent = 95, gnames = "Lujanus griseus", 
                     rlinethick = 0.75, fsize = 8, showplots = FALSE)
 lg_glm_eval$roc
 
-# predict probability of presence / absence across testing area validation data
-lg_glm_probs = predict(lg_glm, newdata = lg_test, type = "prob") # get rid of last empty row
+# predict the probability of presence/absence across the withheld validation data
+lg_glm_probs = predict(lg_glm, newdata = lg_test, type = "prob") 
 
-# predict binary response (presence/absence) across testing area and calculate map accuracy
-# default threshold for suitability is 0.5
+# predict binary response (presence/absence) across validation data and calculate 
+# overall map accuracy, sensitivity, and specificity at the default suitability
+# threshold of 50% 
 lg_glm_pred = predict(lg_glm, lg_test)
 lg_glm_CM = confusionMatrix(lg_glm_pred, lg_test$PRES2,
-                            positive = "PRESENCE") # ignore the empty final row that stores only habitat data
+                            positive = "PRESENCE") 
 
-# IMPORTANT: remember, sensitivity refers to the reference class (absence) and specificity refers to the
-# predicted class (presence). Swap the values if you want presence to be the positive class
+# IMPORTANT: we have now set the positive outcome to "PRESENCE", meaning 
+# sensitivity will now refer to presences and specificity will refer to absences 
 lg_glm_CM 
 
 #### Lasso Regularization ####
 # LASSO = Least Absolute Shrinkage and Selection Operator, parsimonious model that
 # performs L1 regularization (alpha = 1) by minimizing the absolute magnitude of 
-# the regression coefficients . L1 is also used by MaxEnt. Coefficients that are 
+# the regression coefficients. L1 is also used by MaxEnt. Coefficients that are 
 # responsible for large variance are shrunk to ZERO.
 
 # convert training data to matrix format for glmnet
 lg_train_mat = model.matrix(PRES2 ~ ., lg_train)
-# convert class to numerical variable
+# convert response classes to numerical variable
 lg_train_y = ifelse(lg_train$PRES2 == "PRESENCE", 1, 0)
 
 # convert testing data to matrix format
 lg_test_mat = model.matrix(PRES2 ~ ., lg_test)
-# convert class to numerical variable
+# convert response classes to numerical variable
 lg_test_y = ifelse(lg_test$PRES2 == "PRESENCE", 1, 0)
 
-# use 10-fold cross validation to find appropriate lambda
+# use 10-fold cross validation to find appropriate lambda penalty
 lg_lasso_cv = cv.glmnet(lg_train_mat, lg_train_y, alpha = 1, nfolds = 10,
                         family = "binomial", standardize = T, 
                         type.measure = "deviance")
 plot(lg_lasso_cv)
 
-# fitted coefficients, using minimum lambda
+# preview the fitted coefficients, using minimum lambda
 coef(lg_lasso_cv, s = "lambda.min")
 # penalty term using minimum lambda
 sum(coef(lg_lasso_cv, s = "lambda.min")[-1] ^ 2)
@@ -226,37 +258,38 @@ lg_lasso_grid = expand.grid(alpha = 1, lambda = lg_lasso_cv$lambda.min)
 lg_lasso = train(PRES2 ~ ., lg_train, method = "glmnet", family = "binomial",
                  trControl = trainControl, tuneGrid = lg_lasso_grid, 
                  metric = "ROC", maximize = TRUE,  preProcess = c("center", "scale"))
-lg_lasso # ROC, sensitivity, specificity
+
+# Check AUC-ROC, sensitivity, specificity of lasso model 
+lg_lasso 
 max(lg_lasso[["results"]]$ROC) # max AUC-ROC
 coef(lg_lasso$finalModel, lg_lasso$bestTune$lambda) # coefficients log-odds
 exp(coef(lg_lasso$finalModel, lg_lasso$bestTune$lambda)) # odds ratio
-
 
 # plot AUC-ROC Curve from training CV
 lg_lasso_eval = evalm(lg_lasso, percent = 95, gnames = "Lasso Regression", 
                       rlinethick = 0.75, fsize = 8, showplots = FALSE)
 plot(lg_lasso_eval$roc)
 #auc1 = plot(lg_lasso_eval$roc) + ggtitle("Lutjanus griseus") + 
- # theme(plot.title = element_text(size = 14, face = "italic")) + 
-  #theme(legend.position = c(0.66, 0.14))
+# theme(plot.title = element_text(size = 14, face = "italic")) + 
+#theme(legend.position = c(0.66, 0.14))
 #png(filename = paste0(temp_plots, "Gray_Snapper_Lasso_AUC.png"), 
- #   width = 3.15, height = 3.15, units = "in", res = 300)
+#   width = 3.15, height = 3.15, units = "in", res = 300)
 #auc1
 #dev.off()
 
-# predict probability of presence / absence across testing area validation data
+# predict the probability of presence/absence across the withheld validation data
 lg_lasso_probs = predict(lg_lasso, newdata = lg_test, type = "prob")
 
-# predict binary response (presence/absence) across testing area and calculate map accuracy
-# default threshold for suitability is 0.5
+# predict binary response (presence/absence) across validation data and calculate 
+# overall map accuracy, sensitivity, and specificity at the default suitability
+# threshold of 50% 
 lg_lasso_pred = predict(lg_lasso, newdata = lg_test)
 lg_lasso_CM = confusionMatrix(data = lg_lasso_pred, reference = lg_test$PRES,
                               positive = "PRESENCE")
 lg_lasso_CM 
 
-
 #### Ridge Regularization ####
-# L2 regularization (alpha = 0 ) that performs shrinkage by minimizing the sum of
+# L2 regularization (alpha = 0) that performs shrinkage by minimizing the sum of
 # the squared coefficients. Unlike lasso, the coefficients in ridge regression can
 # only asymptotically approach a value of zero.
 
@@ -266,17 +299,19 @@ lg_ridge_cv = cv.glmnet(lg_train_mat, lg_train_y, alpha = 0, nfolds = 10,
                         type.measure = "deviance")
 plot(lg_ridge_cv)
 
-# fitted coefficients, using minimum lambda
+# preview fitted coefficients, using minimum lambda
 coef(lg_ridge_cv, s = "lambda.min")
 # penalty term using minimum lambda
 sum(coef(lg_ridge_cv, s = "lambda.min")[-1] ^ 2)
 
-# run lasso regression in caret using minimum lambda value from cross validation
+# run ridge regression in caret using minimum lambda value from cross validation
 lg_ridge_grid = expand.grid(alpha = 0, lambda = lg_ridge_cv$lambda.min)
 lg_ridge = train(PRES2 ~ ., lg_train, method = "glmnet", family = "binomial",
                  trControl = trainControl, tuneGrid = lg_ridge_grid, 
                  metric = "ROC", maximize = TRUE, preProcess = c("center", "scale"))
-lg_ridge # ROC, sensitivity, specificity
+
+# Check AUC-ROC, sensitivity, specificity of ridge model 
+lg_ridge 
 max(lg_ridge[["results"]]$ROC) # max AUC-ROC
 coef(lg_ridge$finalModel, lg_ridge$bestTune$lambda) # coefficients log-odds
 exp(coef(lg_ridge$finalModel, lg_ridge$bestTune$lambda)) # odds ratio
@@ -286,25 +321,25 @@ lg_ridge_eval = evalm(lg_ridge, percent = 95, gnames = "Ridge Regression",
                       rlinethick = 0.75, fsize = 8, showplots = FALSE)
 plot(lg_ridge_eval$roc)
 #auc2 = plot(lg_ridge_eval$roc) + ggtitle("") + 
- # theme(plot.title = element_text(size = 14, face = "italic")) + 
-  #theme(legend.position = c(0.66, 0.14))
+# theme(plot.title = element_text(size = 14, face = "italic")) + 
+#theme(legend.position = c(0.66, 0.14))
 #png(filename = paste0(temp_plots, "Gray_Snapper_Ridge_AUC.png"), 
- #   width = 3.15, height = 3.15, units = "in", res = 300)
+#   width = 3.15, height = 3.15, units = "in", res = 300)
 #auc2
 #dev.off()
 
-# predict probability of presence / absence across testing area validation data
+# predict the probability of presence/absence across the withheld validation data
 lg_ridge_probs = predict(lg_ridge, newdata = lg_test, type = "prob")
 
-# predict binary response (presence/absence) across testing area and calculate map accuracy
-# default threshold for suitability is 0.5
+# predict binary response (presence/absence) across validation data and calculate 
+# overall map accuracy, sensitivity, and specificity at the default suitability
+# threshold of 50% 
 lg_ridge_pred = predict(lg_ridge, newdata = lg_test)
 lg_ridge_CM = confusionMatrix(data = lg_ridge_pred, reference = lg_test$PRES,
                               positive = "PRESENCE")
 lg_ridge_CM 
 
-
-#### BLUESTRIPED GRUNT ####
+#### BLUESTRIPED GRUNT MODELS ####
 #### Standard Logistic Regression ####
 hs_glm = caret::train(PRES2 ~ ., hs_train, method = "glm", family = "binomial",
                       trControl = trainControl, metric = "ROC", maximize = TRUE,
@@ -317,11 +352,12 @@ hs_glm_eval = evalm(hs_glm, percent = 95, gnames = "Haemulon sciurus",
                     rlinethick = 0.75, fsize = 8, showplots = FALSE)
 hs_glm_eval$roc
 
-# predict probability of presence / absence across testing area validation data
+# predict the probability of presence/absence across the withheld validation data
 hs_glm_probs = predict(hs_glm, newdata = hs_test, type = "prob")
 
-# predict binary response (presence/absence) across testing area and calculate map accuracy
-# default threshold for suitability is 0.5
+# predict binary response (presence/absence) across validation data and calculate 
+# overall map accuracy, sensitivity, and specificity at the default suitability
+# threshold of 50% 
 hs_glm_pred = predict(hs_glm, hs_test)
 hs_glm_CM = confusionMatrix(hs_glm_pred, hs_test$PRES,
                             positive = "PRESENCE")
@@ -331,12 +367,12 @@ hs_glm_CM
 #### Lasso Regularization ####
 # convert training data to matrix format for glmnet
 hs_train_mat = model.matrix(PRES2 ~ ., hs_train)
-#convert class to numerical variable
+# convert response classes to numerical variable
 hs_train_y = ifelse(hs_train$PRES2 == "PRESENCE", 1, 0)
 
 # convert testing data to matrix format
 hs_test_mat = model.matrix(PRES2 ~ ., hs_test)
-#convert class to numerical variable
+# convert response classes to numerical variable
 hs_test_y = ifelse(hs_test$PRES2 == "PRESENCE", 1, 0)
 
 # use 10-fold cross validation to find appropriate lambda
@@ -345,12 +381,12 @@ hs_lasso_cv = cv.glmnet(hs_train_mat, hs_train_y, alpha = 1, nfolds = 10,
                         type.measure = "deviance")
 plot(hs_lasso_cv)
 
-# fitted coefficients, using minimum lambda
+# preview fitted coefficients, using minimum lambda
 coef(hs_lasso_cv, s = "lambda.min")
 # penalty term using minimum lambda
 sum(coef(hs_lasso_cv, s = "lambda.min")[-1] ^ 2)
 
-# run logistic regression in caret using minimum lambda value from cross validation
+# run lasso regression in caret using minimum lambda value from cross validation
 hs_lasso_grid = expand.grid(alpha = 1, lambda = hs_lasso_cv$lambda.min)
 hs_lasso = train(PRES2 ~ ., hs_train, method = "glmnet", family = "binomial",
                  trControl = trainControl, tuneGrid = hs_lasso_grid, 
@@ -365,18 +401,19 @@ hs_lasso_eval = evalm(hs_lasso, percent = 95, gnames = "Lasso Regression",
                       rlinethick = 0.75, fsize = 8, showplots = FALSE)
 plot(hs_lasso_eval$roc)
 #auc3 = plot(hs_lasso_eval$roc) + ggtitle("Haemulon sciurus") + 
-  #theme(plot.title = element_text(size = 14, face = "italic")) + 
-  #theme(legend.position = c(0.66, 0.14))
+#theme(plot.title = element_text(size = 14, face = "italic")) + 
+#theme(legend.position = c(0.66, 0.14))
 #png(filename = paste0(temp_plots, "Bluestriped_Grunt_Lasso_AUC.png"), 
 #    width = 3.15, height = 3.15, units = "in", res = 300)
 #auc3
 #dev.off()
 
-# predict probability of presence / absence across testing area validation data
+# predict the probability of presence/absence across the withheld validation data
 hs_lasso_probs = predict(hs_lasso, newdata = hs_test, type = "prob")
 
-# predict binary response (presence/absence) across testing area and calculate map accuracy
-# default threshold for suitability is 0.5
+# predict binary response (presence/absence) across validation data and calculate 
+# overall map accuracy, sensitivity, and specificity at the default suitability
+# threshold of 50% 
 hs_lasso_pred = predict(hs_lasso, newdata = hs_test)
 hs_lasso_CM = confusionMatrix(data = hs_lasso_pred, reference = hs_test$PRES,
                               positive = "PRESENCE")
@@ -410,48 +447,56 @@ hs_ridge_eval = evalm(hs_lasso, percent = 95, gnames = "Ridge Regression",
                       rlinethick = 0.75, fsize = 8, showplots = FALSE)
 plot(hs_ridge_eval$roc)
 #auc4 = plot(hs_ridge_eval$roc) + ggtitle(" ") + 
-  #theme(plot.title = element_text(size = 14, face = "italic")) + 
-  #theme(legend.position = c(0.66, 0.14))
+#theme(plot.title = element_text(size = 14, face = "italic")) + 
+#theme(legend.position = c(0.66, 0.14))
 #png(filename = paste0(temp_plots, "Bluestriped_Grunt_Ridge_AUC.png"), 
-  #  width = 3.15, height = 3.15, units = "in", res = 300)
+#  width = 3.15, height = 3.15, units = "in", res = 300)
 #auc4
 #dev.off()
 
-# predict probability of presence / absence across testing area validation data
+# predict the probability of presence/absence across the withheld validation data
 hs_ridge_probs = predict(hs_ridge, newdata = hs_test, type = "prob")
 
-# predict binary response (presence/absence) across testing area and calculate map accuracy
-# default threshold for suitability is 0.5
+# predict binary response (presence/absence) across validation data and calculate 
+# overall map accuracy, sensitivity, and specificity at the default suitability
+# threshold of 50% 
 hs_ridge_pred = predict(hs_ridge, newdata = hs_test)
 hs_ridge_CM = confusionMatrix(data = hs_ridge_pred, reference = hs_test$PRES,
                               positive = "PRESENCE")
 hs_ridge_CM
 
-#### COMPARE ACCURACIES ####
+#### COMPARE OVERALL MAP ACCURACIES ####
+# remember this is at the default suitability threshold of 50% and may not be
+# the cut off for optimal performance (see below in code)
+
 # gray snapper
-lg_glm_CM # 77.71 %
-lg_lasso_CM # 76.39 %
-lg_ridge_CM # 77.09 %
+lg_glm_CM # 77.4 %
+lg_lasso_CM # 77.86 %
+lg_ridge_CM # 77.71 %
 
 # bluestriped grunt
-hs_glm_CM # 74.61 %
-hs_lasso_CM # 74.61 %
-hs_ridge_CM # 73.37 %
+hs_glm_CM # 74.77 %
+hs_lasso_CM # 73.22 %
+hs_ridge_CM # 74.15 %
 
 #### COMPARE AUC-ROC ####
 # gray snapper
-max(lg_glm[["results"]]$ROC) # ~0.7326
-max(lg_lasso[["results"]]$ROC) #  ~ 0.7347
-max(lg_ridge[["results"]]$ROC) #  ~ 0.7413
+round(max(lg_glm[["results"]]$ROC), digits = 2) # 0.74
+round(max(lg_lasso[["results"]]$ROC), digits = 2) # 0.74
+round(max(lg_ridge[["results"]]$ROC), digits = 2) # 0.74
 
 # bluestriped grunt
-max(hs_glm[["results"]]$ROC) # ~0.7586
-max(hs_lasso[["results"]]$ROC) #  ~ 0.7605
-max(hs_ridge[["results"]]$ROC) #  ~ 0.7557
+round(max(hs_glm[["results"]]$ROC), digits = 2) # 0.75
+round(max(hs_lasso[["results"]]$ROC), digits = 2) # 0.76
+round(max(hs_ridge[["results"]]$ROC), digits = 2) # 0.75
 
 #### REGRESSION COEFFICIENTS ####
 # look at one of the dgC matrices to find out the order of predictors
 coef(lg_lasso$finalModel, lg_lasso$bestTune$lambda) 
+
+# for habitat levels
+URM = read.csv(paste0(csv_wd, "URM_ClassLv1_IDs.csv"))
+
 coef_names = as.data.frame(c("Intercept", "Scattered Coral/Rock", "Continuous Seagrass",
                              "Discontinuous Seagrass", "Unconsolidated Sediment",
                              "Aggregate Reef", "Pavement", "Reef Rubble", "Mangrove",
@@ -459,6 +504,7 @@ coef_names = as.data.frame(c("Intercept", "Scattered Coral/Rock", "Continuous Se
                              "BPI Fine", "BPI Broad", "Rugosity", "Summer Temperature",
                              "Summer Salinity", "Winter Temperature", "Winter Salinity"))
 
+# extract coefficient estimates
 lg_lasso_coef = as.data.frame(as.vector(coef(lg_lasso$finalModel, lg_lasso$bestTune$lambda)))
 lg_ridge_coef = as.data.frame(as.vector(coef(lg_ridge$finalModel, lg_ridge$bestTune$lambda)))
 hs_lasso_coef = as.data.frame(as.vector(coef(hs_lasso$finalModel, hs_lasso$bestTune$lambda)))
@@ -475,46 +521,40 @@ colnames(lg_ridge_coef) = c("Variable", "Coefficient")
 lg_ridge_coef$Species = rep("Lutjanus griseus", nrow(lg_ridge_coef))
 lg_ridge_coef$Life_Stage = rep("Subadult", nrow(lg_ridge_coef))
 
-
 hs_lasso_coef = cbind(coef_names, hs_lasso_coef)
 colnames(hs_lasso_coef) = c("Variable", "Coefficient")
 hs_lasso_coef$Species = rep("Haemulon sciurus", nrow(hs_lasso_coef))
 hs_lasso_coef$Life_Stage = rep("Subadult", nrow(hs_lasso_coef))
-
 
 hs_ridge_coef = cbind(coef_names, hs_ridge_coef)
 colnames(hs_ridge_coef) = c("Variable", "Coefficient")
 hs_ridge_coef$Species = rep("Haemulon sciurus", nrow(hs_ridge_coef))
 hs_ridge_coef$Life_Stage = rep("Subadult", nrow(hs_ridge_coef))
 
-# combine lasso coefficients for both species, repeat for ridge and save
+# combine lasso coefficients for both species, repeat for ridge 
 lasso_coef = rbind(lg_lasso_coef, hs_lasso_coef)
 ridge_coef = rbind(lg_ridge_coef, hs_ridge_coef)
 
-# the original depth data are negative, meaning larger negative numbers (deeper water)
-# are technically "smaller" than less negative (shallower) values. This is a bit confusing 
-# when looking at coefficients, because technically a positive depth coefficient means that
-# habitat suitability increases as depth values get larger (shallower). Instead, flip
-# the sign of the coefficient so that they represent the change in suitability at increasing depths
-lasso_coef[11, 2] = as.numeric(-1*lasso_coef[11, 2])
-lasso_coef[31, 2] = as.numeric(-1*lasso_coef[31, 2])
-
-ridge_coef[11, 2] = as.numeric(-1*ridge_coef[11, 2])
-ridge_coef[31, 2] = as.numeric(-1*ridge_coef[31, 2])
-
-# finally add the odds ratios to each table and save
+# finally add the odds ratios and probabilities to each table and save
 lasso_coef$Odds_Ratio = exp(lasso_coef$Coefficient)
 ridge_coef$Odds_Ratio = exp(ridge_coef$Coefficient)
 lasso_coef = lasso_coef %>% relocate(Odds_Ratio, .after = Coefficient)
 ridge_coef = ridge_coef %>% relocate(Odds_Ratio, .after = Coefficient)
 
-write.csv(lasso_coef, paste0(csv_wd, "Lasso_Coefficients.csv"), row.names = FALSE)
-write.csv(ridge_coef, paste0(csv_wd, "Ridge_Coefficients.csv"), row.names = FALSE)
+lasso_coef$Probability = (lasso_coef$Odds_Ratio/(lasso_coef$Odds_Ratio+1))
+ridge_coef$Probability = (ridge_coef$Odds_Ratio/(ridge_coef$Odds_Ratio+1))
+lasso_coef = lasso_coef %>% relocate(Probability, .after = Odds_Ratio)
+ridge_coef = ridge_coef %>% relocate(Probability, .after = Odds_Ratio)
 
-# plotting coefficients
+# save data
+write.csv(lasso_coef, paste0(csv_wd, "Subadult_Lasso_Coefficients.csv"), row.names = FALSE)
+write.csv(ridge_coef, paste0(csv_wd, "Subadult_Ridge_Coefficients.csv"), row.names = FALSE)
+
+# create a color palette for plotting coefficients
 my_pal = pnw_palette("Bay",8)
 my_pal
 
+# lasso coefficients plot
 lasso_coef_plot = ggplot(data = lasso_coef, aes(x = Coefficient, y = Variable, fill = Species)) +
   geom_vline(xintercept = 0, color = "gray") + geom_point(aes(color = Species)) +
   scale_color_manual(values = c(my_pal[1], my_pal[5])) +
@@ -533,6 +573,7 @@ lasso_coef_plot = ggplot(data = lasso_coef, aes(x = Coefficient, y = Variable, f
                      legend.box.margin=margin(t = 0, r = 0, b = -10, l = 0))
 lasso_coef_plot
 
+# ridge coefficients plot
 ridge_coef_plot = ggplot(data = ridge_coef, aes(x = Coefficient, y = Variable, fill = Species)) +
   geom_vline(xintercept = 0, color = "gray") + geom_point(aes(color = Species)) +
   scale_color_manual(values = c(my_pal[1], my_pal[5])) +
@@ -551,17 +592,21 @@ ridge_coef_plot = ggplot(data = ridge_coef, aes(x = Coefficient, y = Variable, f
                      legend.box.margin = margin(t = 0, r = 0, b = -10, l = 0))
 ridge_coef_plot
 
+# make a second ridge figure without the legend so it can be placed below the 
+# lasso plot in a single figure (cowplot)
 ridge_coef_plot2 = ridge_coef_plot + theme(legend.position = "none",  plot.margin = margin(c(t = 8,0,b = 5,0)))
 
+# cowplot with both coefficient plots
 coef_grid = plot_grid(lasso_coef_plot, ridge_coef_plot2, nrow = 2)
 
-ggsave(plot = lasso_coef_plot, filename = paste0(temp_plots, "Lasso_Coefficients.png"), height = 3.15, 
+# save plots
+ggsave(plot = lasso_coef_plot, filename = paste0(temp_plots, "Subadult_Lasso_Coefficients.png"), height = 3.15, 
        width = 5, units = "in", dpi = 450)
 
-ggsave(plot = ridge_coef_plot, filename = paste0(temp_plots, "Ridge_Coefficients.png"), height = 3.15, 
+ggsave(plot = ridge_coef_plot, filename = paste0(temp_plots, "Subadult_Ridge_Coefficients.png"), height = 3.15, 
        width = 5, units = "in", dpi = 450)
 
-ggsave(plot = coef_grid, filename = paste0(temp_plots, "Regression_Coefficients_Grid.png"), height = 5, 
+ggsave(plot = coef_grid, filename = paste0(temp_plots, "Subadult_Regression_Coefficients_Grid.png"), height = 5, 
        width = 5, units = "in", dpi = 450)
 
 #### VARIABLE IMPORTANCE ####
@@ -570,16 +615,20 @@ lg_lasso_vimp = caret::varImp(lg_lasso, lambda = lg_lasso$bestTune$lambda)$impor
 lg_lasso_vimp # check order of variables 
 names = data.frame("Variable" = c("Scattered Coral/Rock", "Continuous Seagrass",
                                   "Discontinuous Seagrass", "Unconsolidated Sediment",
-                                  "Aggregate Reef", "Pavement", "Reef Rubble", "Mangrove",
-                                  "Mangrove Distance", "Depth", "Slope", "Curvature",
-                                  "BPI Fine", "BPI Broad", "Rugosity", "Summer Temperature",
-                                  "Summer Salinity", "Winter Temperature", "Winter Salinity"))
+                                  "Aggregate Reef", "Pavement", "Reef Rubble", 
+                                  "Mangrove", "Mangrove Distance", "Depth", 
+                                  "Slope", "Curvature", "BPI Fine", "BPI Broad",
+                                  "Rugosity", "Summer Temperature", 
+                                  "Summer Salinity", "Winter Temperature", 
+                                  "Winter Salinity"))
+# link the variable importance values back to their names
 lg_lasso_vimp = cbind(lg_lasso_vimp, names)
 
 lg_ridge_vimp = cbind(caret::varImp(lg_ridge, lambda = lg_ridge$bestTune$lambda)$importance, names)
 hs_lasso_vimp = cbind(caret::varImp(hs_lasso, lambda = hs_lasso$bestTune$lambda)$importance, names)
 hs_ridge_vimp = cbind(caret::varImp(hs_ridge, lambda = hs_ridge$bestTune$lambda)$importance, names)
 
+# add species names and life stage info
 lg_lasso_vimp$Species = rep("Lutjanus griseus", nrow(lg_lasso_vimp))
 lg_ridge_vimp$Species = rep("Lutjanus griseus", nrow(lg_ridge_vimp))
 hs_lasso_vimp$Species = rep("Haemulon sciurus", nrow(hs_lasso_vimp))
@@ -593,23 +642,27 @@ hs_ridge_vimp$Life_Stage = rep("Subadult", nrow(hs_ridge_vimp))
 lasso_vimp = rbind(lg_lasso_vimp, hs_lasso_vimp)
 ridge_vimp = rbind(lg_ridge_vimp, hs_ridge_vimp)
 
-# save variable importance info
-write.csv(lasso_vimp, paste0(csv_wd, "Lasso_Variable_Importance.csv"))
-write.csv(ridge_vimp, paste0(csv_wd, "Ridge_Variable_Importance.csv"))
+# save variable importance data to csv
+write.csv(lasso_vimp, paste0(csv_wd, "Subadult_Lasso_Variable_Importance.csv"))
+write.csv(ridge_vimp, paste0(csv_wd, "Subadult_Ridge_Variable_Importance.csv"))
 
-
+# plot variable importance values from lasso regressions
 lasso_vimp_plot = 
   ggplot(lasso_vimp, aes(x = Variable, y = Overall, fill = Species)) + 
   geom_bar(stat = "identity", color = "black", position = position_dodge()) +
-  xlab(" ") + ylab("Lasso Regression Variable Importance") +
+  xlab(" ") + ylab("Lasso regression variable importance") +
   scale_fill_manual(values = c(my_pal[1], my_pal[5])) +
-  scale_x_discrete(limits = c("Winter Salinity", "Winter Temperature", "Summer Salinity", 
-                              "Summer Temperature", "Rugosity", "BPI Broad", "BPI Fine",
-                              "Curvature", "Slope", "Depth", "Mangrove Distance", "Mangrove",
-                              "Reef Rubble", "Pavement", "Aggregate Reef", "Unconsolidated Sediment",
-                              "Discontinuous Seagrass", "Continuous Seagrass", "Scattered Coral/Rock")) +
-  theme_bw() + theme(legend.position = "top", legend.title = element_blank(),
-                     panel.border = element_blank(), panel.grid.major = element_blank(),
+  scale_x_discrete(limits = c("Winter Salinity", "Winter Temperature", 
+                              "Summer Salinity", "Summer Temperature", "Rugosity",
+                              "BPI Broad", "BPI Fine", "Curvature", "Slope", 
+                              "Depth", "Mangrove Distance", "Mangrove",
+                              "Reef Rubble", "Pavement", "Aggregate Reef", 
+                              "Unconsolidated Sediment", "Discontinuous Seagrass", 
+                              "Continuous Seagrass", "Scattered Coral/Rock")) +
+  theme_bw() + theme(legend.position = "top", 
+                     legend.title = element_blank(),
+                     panel.border = element_blank(), 
+                     panel.grid.major = element_blank(),
                      panel.grid.minor = element_blank(), 
                      axis.line = element_line(colour = "black"),
                      axis.text.x = element_text(color = "black"),
@@ -621,18 +674,23 @@ lasso_vimp_plot =
   coord_flip() 
 lasso_vimp_plot
 
+# plot variable importance values from ridge regressions
 ridge_vimp_plot = 
   ggplot(ridge_vimp, aes(x = Variable, y = Overall, fill = Species)) + 
   geom_bar(stat = "identity", color = "black", position = position_dodge()) +
-  xlab(" ") + ylab("Ridge Regression Variable Importance") +
+  xlab(" ") + ylab("Ridge regression variable importance") +
   scale_fill_manual(values = c(my_pal[1], my_pal[5])) + 
-  scale_x_discrete(limits = c("Winter Salinity", "Winter Temperature", "Summer Salinity", 
-                              "Summer Temperature", "Rugosity", "BPI Broad", "BPI Fine",
-                              "Curvature", "Slope", "Depth", "Mangrove Distance", "Mangrove",
-                              "Reef Rubble", "Pavement", "Aggregate Reef", "Unconsolidated Sediment",
-                              "Discontinuous Seagrass", "Continuous Seagrass", "Scattered Coral/Rock")) +
-  theme_bw() + theme(legend.position = "top", legend.title = element_blank(),
-                     panel.border = element_blank(), panel.grid.major = element_blank(),
+  scale_x_discrete(limits = c("Winter Salinity", "Winter Temperature", 
+                              "Summer Salinity", "Summer Temperature", "Rugosity",
+                              "BPI Broad", "BPI Fine", "Curvature", "Slope", 
+                              "Depth", "Mangrove Distance", "Mangrove", 
+                              "Reef Rubble", "Pavement", "Aggregate Reef", 
+                              "Unconsolidated Sediment", "Discontinuous Seagrass", 
+                              "Continuous Seagrass", "Scattered Coral/Rock")) +
+  theme_bw() + theme(legend.position = "top", 
+                     legend.title = element_blank(),
+                     panel.border = element_blank(),
+                     panel.grid.major = element_blank(),
                      panel.grid.minor = element_blank(), 
                      axis.line = element_line(colour = "black"),
                      axis.text.x = element_text(color = "black"),
@@ -644,33 +702,45 @@ ridge_vimp_plot =
   coord_flip()
 ridge_vimp_plot
 
-ggsave(plot = lasso_vimp_plot, filename = paste0(temp_plots, "Lasso_Variable_Importance.png"), height = 5, 
-       width = 8.5, units = "in", dpi = 450)
+# save plots
+ggsave(plot = lasso_vimp_plot, filename = 
+         paste0(temp_plots, "Subadult_Lasso_Variable_Importance.png"), 
+       height = 5, width = 8.5, units = "in", dpi = 450)
 
-ggsave(plot = ridge_vimp_plot, filename = paste0(temp_plots, "Ridge_Variable_Importance.png"), height = 5, 
-       width = 8.5, units = "in", dpi = 450)
+ggsave(plot = ridge_vimp_plot, filename = 
+         paste0(temp_plots, "Subadult_Ridge_Variable_Importance.png"), 
+       height = 5, width = 8.5, units = "in", dpi = 450)
 
-#### TOP 5 VARIABLES ####
+#### TOP 5 MOST IMPORTANT VARIABLES ####
 # five most important predictors across species-model combinations
-lasso_top5 = lasso_vimp %>% filter((Species == "Lutjanus griseus" & Variable %in% c("Depth", "Mangrove Distance", "Reef Rubble",
-                                                                       "Pavement", "Summer Temperature")) |
-                                     (Species == "Haemulon sciurus" & Variable %in% c("Winter Salinity", "Depth", "Pavement",
-                                                                         "Summer Salinity", "Unconsolidated Sediment")))
+lasso_top5 = lasso_vimp %>% 
+  filter((Species == "Lutjanus griseus" & 
+            Variable %in% c("Depth", "Mangrove Distance", "Pavement",
+                            "Summer Temperature", "Reef Rubble")) |
+           (Species == "Haemulon sciurus" & 
+              Variable %in% c("Winter Salinity", "Depth", "Pavement",
+                              "Summer Salinity", "Unconsolidated Sediment")))
 
-ridge_top5 = ridge_vimp %>% filter((Species == "Lutjanus griseus" & Variable %in% c("Depth", "Mangrove Distance", "Pavement",
-                                                                                    "Reef Rubble", "Winter Temperature")) |
-                                     (Species == "Haemulon sciurus" & Variable %in% c("Winter Salinity", "Depth", "Pavement",
-                                                                                      "Summer Salinity", "Unconsolidated Sediment")))
+ridge_top5 = ridge_vimp %>% 
+  filter((Species == "Lutjanus griseus" & 
+            Variable %in% c("Depth", "Mangrove Distance", "Pavement", 
+                            "Winter Temperature", "Summer Temperature")) |
+           (Species == "Haemulon sciurus" & 
+              Variable %in% c("Winter Salinity", "Depth", "Pavement",
+                              "Summer Salinity", "Unconsolidated Sediment")))
 
 # plotting
 lasso_top5_plot = ggplot((lasso_top5 %>% group_by(Species)), 
                          aes(x = interaction(Variable, Overall, Species), 
                              y = Overall, fill = Species)) + 
-  geom_bar(stat = "identity", color = "black", position = position_dodge(), group = lasso_top5$Species) +
+  geom_bar(stat = "identity", color = "black", position = position_dodge(), 
+           group = lasso_top5$Species) +
   xlab(" ") + ylab("Lasso regression variable importance") +
   scale_fill_manual(values = c(my_pal[1], my_pal[5])) + 
-  theme_bw() + theme(legend.position = "top", legend.title = element_blank(),
-                     panel.border = element_blank(), panel.grid.major = element_blank(),
+  theme_bw() + theme(legend.position = "top", 
+                     legend.title = element_blank(),
+                     panel.border = element_blank(), 
+                     panel.grid.major = element_blank(),
                      panel.grid.minor = element_blank(), 
                      axis.line = element_line(colour = "black"),
                      axis.text.x = element_text(color = "black"),
@@ -681,16 +751,17 @@ lasso_top5_plot = ggplot((lasso_top5 %>% group_by(Species)),
             position = position_dodge(width = 1), hjust = -0.25, vjust = 0.45) + 
   coord_flip()
 lasso_top5_plot
-lasso_top5_plot = lasso_top5_plot + scale_x_discrete(labels = c("Depth.100.Lutjanus griseus" = "Depth",
-                                                                "Mangrove Distance.57.1531077410818.Lutjanus griseus" = "Mangrove Distance",
-                                                                "Reef Rubble.49.6410017869303.Lutjanus griseus" = "Reef Rubble",
-                                                                "Pavement.47.2176003335797.Lutjanus griseus" = "Pavement",
-                                                                "Summer Temperature.38.4700757087235.Lutjanus griseus" = "Summer Temperature",
-                                                                "Winter Salinity.100.Haemulon sciurus" = "Winter Salinity",
-                                                                "Depth.50.9633789015947.Haemulon sciurus" = "Depth",
-                                                                "Pavement.30.1289151728483.Haemulon sciurus" = "Pavement",
-                                                                "Summer Salinity.26.6816671874025.Haemulon sciurus" = "Summer Salinity",
-                                                                "Unconsolidated Sediment.20.420931627249.Haemulon sciurus" = "Unconsolidated Sediment"))
+lasso_top5_plot = lasso_top5_plot + 
+  scale_x_discrete(labels = c("Depth.100.Lutjanus griseus" = "Depth",
+                              "Mangrove Distance.50.6970036226071.Lutjanus griseus" = "Mangrove Distance",
+                              "Pavement.48.5604060605507.Lutjanus griseus" = "Pavement",
+                              "Summer Temperature.39.3136904072642.Lutjanus griseus" = "Summer Temperature",
+                              "Reef Rubble.31.8880531905953.Lutjanus griseus" = "Reef Rubble",
+                              "Winter Salinity.100.Haemulon sciurus" = "Winter Salinity",
+                              "Depth.46.1761728965393.Haemulon sciurus" = "Depth",
+                              "Pavement.27.2367063049379.Haemulon sciurus" = "Pavement",
+                              "Summer Salinity.19.2054383340313.Haemulon sciurus" = "Summer Salinity",
+                              "Unconsolidated Sediment.18.1788393376662.Haemulon sciurus" = "Unconsolidated Sediment"))
 lasso_top5_plot
 
 ridge_top5_plot = ggplot((ridge_top5 %>% group_by(Species)), 
@@ -699,8 +770,10 @@ ridge_top5_plot = ggplot((ridge_top5 %>% group_by(Species)),
   geom_bar(stat = "identity", color = "black", position = position_dodge(), group = ridge_top5$Species) +
   xlab(" ") + ylab("Ridge regression variable importance") +
   scale_fill_manual(values = c(my_pal[1], my_pal[5])) + 
-  theme_bw() + theme(legend.position = "top", legend.title = element_blank(),
-                     panel.border = element_blank(), panel.grid.major = element_blank(),
+  theme_bw() + theme(legend.position = "top", 
+                     legend.title = element_blank(),
+                     panel.border = element_blank(), 
+                     panel.grid.major = element_blank(),
                      panel.grid.minor = element_blank(), 
                      axis.line = element_line(colour = "black"),
                      axis.text.x = element_text(color = "black"),
@@ -711,185 +784,147 @@ ridge_top5_plot = ggplot((ridge_top5 %>% group_by(Species)),
             position = position_dodge(width = 1), hjust = -0.25, vjust = 0.45) + 
   coord_flip()
 ridge_top5_plot
-ridge_top5_plot = ridge_top5_plot + scale_x_discrete(labels = c("Depth.100.Lutjanus griseus" = "Depth",
-                                                                "Mangrove Distance.90.4765641574874.Lutjanus griseus" = "Mangrove Distance",
-                                                                "Pavement.77.1229623162004.Lutjanus griseus" = "Pavement",
-                                                                "Reef Rubble.72.767215856622.Lutjanus griseus" = "Reef Rubble",
-                                                                "Winter Temperature.66.1729254744799.Lutjanus griseus" = "Winter Temperature",
-                                                                "Winter Salinity.100.Haemulon sciurus" = "Winter Salinity",
-                                                                "Depth.48.0209817702403.Haemulon sciurus" = "Depth",
-                                                                "Pavement.42.6318832181052.Haemulon sciurus" = "Pavement",
-                                                                "Summer Salinity.38.9856234349051.Haemulon sciurus" = "Summer Salinity",
-                                                                "Unconsolidated Sediment.28.7635412734945.Haemulon sciurus" = "Unconsolidated Sediment"))
+ridge_top5_plot = ridge_top5_plot + 
+  scale_x_discrete(labels = c("Depth.100.Lutjanus griseus" = "Depth",
+                              "Mangrove Distance.87.120866159693.Lutjanus griseus" = "Mangrove Distance",
+                              "Pavement.78.3345726333624.Lutjanus griseus" = "Pavement",
+                              "Winter Temperature.61.2061463633451.Lutjanus griseus" = "Winter Temperature",
+                              "Summer Temperature.58.8419404838786.Lutjanus griseus" = "Reef Rubble",
+                              "Winter Salinity.100.Haemulon sciurus" = "Winter Salinity",
+                              "Depth.47.2358899456675.Haemulon sciurus" = "Depth",
+                              "Pavement.40.4109652329722.Haemulon sciurus" = "Pavement",
+                              "Summer Salinity.37.3157477555585.Haemulon sciurus" = "Summer Salinity",
+                              "Unconsolidated Sediment.26.5684577330772.Haemulon sciurus" = "Unconsolidated Sediment"))
 ridge_top5_plot
 
+# save plots
+ggsave(plot = lasso_top5_plot, filename = paste0(temp_plots, "Subadult_Lasso_Top5_Variables.png"), 
+       height = 5, width = 8.5, units = "in", dpi = 450)
 
-ggsave(plot = lasso_top5_plot, filename = paste0(temp_plots, "Lasso_Top5_Variables.png"), height = 5, 
-       width = 8.5, units = "in", dpi = 450)
+ggsave(plot = ridge_top5_plot, filename = paste0(temp_plots, "Subadult_Ridge_Top5_Variables.png"), 
+       height = 5, width = 8.5, units = "in", dpi = 450)
 
-ggsave(plot = ridge_top5_plot, filename = paste0(temp_plots, "Ridge_Top5_Variables.png"), height = 5, 
-       width = 8.5, units = "in", dpi = 450)
-
-
-#### CONTINUOUS (RASTER) SUITABILITY ####
-# save folder path
+#### RASTERS: CONTINUOUS SUITABILITY PREDICTIONS ####
+# folder path for regression habitat suitability rasters
 HSMs = "Z:/Courtney/Stuart_MSc_Ch1/HSMs/Logistic_Regression/"
 
-# make predictions across training area 
-# FYI: very time consuming step, each model takes up to 10 hours to build
+# make suitability predictions across entire study area
+# FYI: very time consuming step, each model can take upwards of 10 hours to build
 library(snow)
+library(doParallel)
 
 # make sure raster stack layer names match lasso model variables
-env
+names(env)
 lg_lasso$coefnames
-names(env) <- c("Habitat", "Mangrove_Dist", "Depth", "Slope", "Curvature", "BPI_Fine", "BPI_Broad", "Rugosity",
-                "Mean_Sum_Temp", "Mean_Sum_Sal", "Mean_Win_Temp", "Mean_Win_Sal")
 
-# IMPORTANT: specify (1 - predict) because the raster package will use the first class as its
-# output, and that is the absence reference class in this case. We want probability of presence!
-# you'll notice this small caveat if you open the lg_lasso_probs df - absence is first.
-beginCluster(n = 10)
-lg_lasso_HSM = writeRaster((1-(raster::predict(env, lg_lasso, type = "prob"))),
-                                 filename = paste0(HSMs, 
-                                 "Subadult_Gray_Snapper_Lasso.asc"),
-                                 format = "ascii", overwrite = TRUE)
-endCluster()
+# IMPORTANT: specify "index = 2" because the raster package will use the first 
+# class as its output, and that is the absence reference class in this case. 
+# We want probability of presence! you'll notice this small caveat if you look 
+# at the lg_lasso levels - absence is first.
+lg_lasso$levels # we want index 2
 
-# repeat for lg ridge training
-beginCluster(n = 10)
-lg_train_ridge_HSM = writeRaster((1-(raster::predict(env_train, lg_ridge, type = "prob"))),
-                                 filename = paste0(HSMs, 
-                                 "Logistic_Regression/Subadult_Gray_Snapper_Ridge_Train.asc"),
-                                 format = "ascii", overwrite = TRUE)
-endCluster()
+# determine the number of cores (can also define manually)
+no_cores = parallel::detectCores() - 2
 
-# repeat for hs lasso training
-beginCluster(n = 10)
-hs_train_lasso_HSM = writeRaster((1-(raster::predict(env_train, hs_lasso, type = "prob"))),
-                                 filename = paste0(HSMs, 
-                                 "Logistic_Regression/Subadult_Bluestriped_Grunt_Lasso_Train.asc"),
-                                 format = "ascii", overwrite = TRUE)
-endCluster()
+# gray snapper lasso
+# create a cluster across your cores for parallel computing
+cl = makeCluster(no_cores)
+registerDoParallel(cl) # initiate cluster
+predict(env, lg_lasso, type = "prob", index = 2, progress = "window",
+        filename = paste0(HSMs, "Subadult_Gray_Snapper_Lasso.asc"),
+        format = "ascii", overwrite = TRUE, na.rm = TRUE)
+stopCluster(cl) # destroy cluster
 
-# repeat for hs ridge training
-beginCluster(n = 10)
-hs_train_ridge_HSM = writeRaster((1-(raster::predict(env_train, hs_ridge, type = "prob"))),
-                                 filename = paste0(HSMs, 
-                                 "Logistic_Regression/Subadult_Bluestriped_Grunt_Ridge_Train.asc"),
-                                 format = "ascii", overwrite = TRUE)
-endCluster()
+# repeat for gray snapper ridge
+cl = makeCluster(no_cores)
+registerDoParallel(cl) 
+predict(env, lg_ridge, type = "prob", index = 2, progress = "window",
+        filename = paste0(HSMs, "Subadult_Gray_Snapper_Ridge.asc"),
+        format = "ascii", overwrite = TRUE, na.rm = TRUE)
+stopCluster(cl)
 
-#### Testing Area ####
-# spatial predictors in testing area
-habitat_test = raster(paste0(test_wd, "Environmental/Habitat.asc"))
-mg_dist_test = raster(paste0(test_wd, "Environmental/Mangrove_Dist.asc"))
-depth_test = raster(paste0(test_wd, "Environmental/Depth.asc"))
-slope_test = raster(paste0(test_wd, "Environmental/Slope.asc"))
-curvature_test = raster(paste0(test_wd, "Environmental/Curvature.asc"))
-bpi_fine_test = raster(paste0(test_wd, "Environmental/BPI_Fine.asc"))
-bpi_broad_test = raster(paste0(test_wd, "Environmental/BPI_Broad.asc"))
-rugosity_test = raster(paste0(test_wd, "Environmental/Rugosity.asc"))
-sum_temp_test = raster(paste0(test_wd, "Environmental/Mean_Sum_Temp.asc"))
-sum_sal_test = raster(paste0(test_wd, "Environmental/Mean_Sum_Sal.asc"))
-win_sal_test = raster(paste0(test_wd, "Environmental/Mean_Win_Sal.asc"))
+# repeat for bluestriped grunt lasso 
+cl = makeCluster(no_cores)
+registerDoParallel(cl) 
+predict(env, hs_lasso, type = "prob", index = 2, progress = "window",
+        filename = paste0(HSMs, "Subadult_Bluestriped_Grunt_Lasso.asc"),
+        format = "ascii", overwrite = TRUE, na.rm = TRUE)
+stopCluster(cl)
 
-# define crs
-crs(habitat_test) = my_crs
-crs(mg_dist_test) = my_crs
-crs(depth_test) = my_crs
-crs(slope_test) = my_crs
-crs(curvature_test) = my_crs
-crs(bpi_fine_test) = my_crs
-crs(bpi_broad_test) = my_crs
-crs(rugosity_test) = my_crs
-crs(sum_temp_test) = my_crs
-crs(sum_sal_test) = my_crs
-crs(win_sal_test) = my_crs
+# repeat for bluestriped grunt ridge 
+cl = makeCluster(no_cores)
+registerDoParallel(cl) 
+predict(env, hs_ridge, type = "prob", index = 2, progress = "window",
+        filename = paste0(HSMs, "Subadult_Bluestriped_Grunt_Ridge.asc"),
+        format = "ascii", overwrite = TRUE, na.rm = TRUE)
+stopCluster(cl)
 
-# create raster stack for testing area
-env_test = stack(x = c(habitat_test, mg_dist_test, depth_test,
-                       slope_test, curvature_test, bpi_fine_test,
-                       bpi_broad_test, rugosity_test, sum_temp_test, 
-                       sum_sal_test, win_sal_test))
 
-beginCluster(n = 10)
-lg_test_lasso_HSM = writeRaster((1-(raster::predict(env_test, lg_lasso, type = "prob"))),
-                                filename = paste0(HSMs, 
-                                "Logistic_Regression/Subadult_Gray_Snapper_Lasso_Test.asc"),
-                                format = "ascii", overwrite = TRUE)
-endCluster()
+#### MAX SSS TRAINING THRESHOLD ####
+# the default 50% suitability cut-off is arbitrary, let's instead find the threshold
+# at which each model achieves the maximum sum of training sensitivity + specificity
+# (Max SSS: optimal discrimination between presences & absences), this will indicate
+# how conservative of a suitability cut-off is required when making binary predictions.
 
-# repeat for lg ridge testing
-beginCluster(n = 10)
-lg_test_ridge_HSM = writeRaster((1-(raster::predict(env_test, lg_ridge, type = "prob"))),
-                                filename = paste0(HSMs, 
-                                "Logistic_Regression/Subadult_Gray_Snapper_Ridge_Test.asc"),
-                                format = "ascii", overwrite = TRUE)
-endCluster()
+# *NOTE* the thresholder function uses the two levels from the response variable to 
+# calculate statistics. the first outcome level is used for sensitivity and the second 
+# for specificity
 
-# repeat for hs lasso testing
-beginCluster(n = 10)
-hs_test_lasso_HSM = writeRaster((1-(raster::predict(env_test, hs_lasso, type = "prob"))),
-                                filename = paste0(HSMs, 
-                                "Logistic_Regression/Subadult_Bluestriped_Grunt_Lasso_Test.asc"),
-                                format = "ascii", overwrite = TRUE)
-endCluster()
-
-# repeat for hs ridge testing
-beginCluster(n = 10)
-hs_test_ridge_HSM = writeRaster((1-(raster::predict(env_test, hs_ridge, type = "prob"))),
-                                filename = paste0(HSMs, 
-                                "Logistic_Regression/Subadult_Bluestriped_Grunt_Ridge_Test.asc"),
-                                format = "ascii", overwrite = TRUE)
-endCluster()
-
-#### MAX SSS THRESHOLD ####
-# maximize the sum of the training sensitivity + specificity (max SSS)
-lg_lasso_th = thresholder(lg_lasso, statistics = c("Sensitivity", "Specificity"),
-                          threshold = seq(0, 1, by = 0.01))
+# gray snapper lasso
+lg_lasso$levels
+lg_lasso_th = thresholder(lg_lasso, threshold = seq(0, 1, by = 0.01), 
+                          statistics = c("Accuracy", "Sensitivity", "Specificity"))
 lg_lasso_th$SSS = lg_lasso_th$Sensitivity + lg_lasso_th$Specificity
-# max SSS occurs at a threshold of 70 (remember this is referring to absence),
-# so anything at or above 30% is considered suitable
 
-lg_ridge_th = thresholder(lg_ridge, statistics = c("Sensitivity", "Specificity"),
-                          threshold = seq(0, 1, by = 0.01))
+# max SSS occurs at a threshold of 72% (remember this is referring to absence),
+# so anything at or above 28% is considered suitable for the gray snapper lasso
+# predict binary response (presence/absence) across testing data and calculate 
+# overall map accuracy, sensitivity, and specificity
+lg_lasso_pred_maxSSS = as.factor(ifelse(lg_lasso_probs$PRESENCE >= 0.28, "PRESENCE", "ABSENCE"))
+lg_lasso_CM_maxSSS = confusionMatrix(data = lg_lasso_pred_maxSSS, reference = lg_test$PRES,
+                                     positive = "PRESENCE")
+lg_lasso_CM_maxSSS 
+
+# gray snapper ridge
+lg_ridge$levels
+lg_ridge_th = thresholder(lg_ridge, threshold = seq(0, 1, by = 0.01), 
+                          statistics = c("Accuracy", "Sensitivity", "Specificity"))
 lg_ridge_th$SSS = lg_ridge_th$Sensitivity + lg_ridge_th$Specificity
-# max SSS occurs at a threshold of 70 (remember this is referring to absence),
-# so anything at or above 30% is considered suitable
 
-hs_lasso_th = thresholder(hs_lasso, statistics = c("Sensitivity", "Specificity"),
-                          threshold = seq(0, 1, by = 0.01))
+# max SSS occurs at a threshold of 76% (remember this is referring to absence),
+# so anything at or above 24% is considered suitable for the gray snapper ridge
+# predict binary response (presence/absence) across testing data and calculate 
+# overall map accuracy, sensitivity, and specificity
+lg_ridge_pred_maxSSS = as.factor(ifelse(lg_ridge_probs$PRESENCE >= 0.24, "PRESENCE", "ABSENCE"))
+lg_ridge_CM_maxSSS = confusionMatrix(data = lg_ridge_pred_maxSSS, reference = lg_test$PRES,
+                                     positive = "PRESENCE")
+lg_ridge_CM_maxSSS 
+
+# bluestriped grunt lasso
+hs_lasso$levels
+hs_lasso_th = thresholder(hs_lasso, threshold = seq(0, 1, by = 0.01), 
+                          statistics = c("Accuracy", "Sensitivity", "Specificity"))
 hs_lasso_th$SSS = hs_lasso_th$Sensitivity + hs_lasso_th$Specificity
-# max SSS occurs at a threshold of 70 (remember this is referring to absence),
-# so anything at or above 30% is considered suitable
 
-hs_ridge_th = thresholder(hs_ridge, statistics = c("Sensitivity", "Specificity"),
-                          threshold = seq(0, 1, by = 0.01))
+# max SSS occurs at a threshold of 68% (remember this is referring to absence),
+# so anything at or above 32% is considered suitable for the bluestriped grunt lasso
+# predict binary response (presence/absence) across testing data and calculate 
+# overall map accuracy, sensitivity, and specificity
+hs_lasso_pred_maxSSS = as.factor(ifelse(hs_lasso_probs$PRESENCE >= 0.32, "PRESENCE", "ABSENCE"))
+hs_lasso_CM_maxSSS = confusionMatrix(data = hs_lasso_pred_maxSSS, reference = hs_test$PRES,
+                                     positive = "PRESENCE")
+hs_lasso_CM_maxSSS
+
+# bluestriped grunt ridge
+hs_ridge_th = thresholder(hs_ridge, threshold = seq(0, 1, by = 0.01), 
+                          statistics = c("Accuracy", "Sensitivity", "Specificity"))
 hs_ridge_th$SSS = hs_ridge_th$Sensitivity + hs_ridge_th$Specificity
-# max SSS occurs at a threshold of 73 (remember this is referring to absence),
-# so anything at or above 27% is considered suitable
 
-# predict binary response (presence/absence) across testing area and calculate map accuracy
-# max SSS threshold for suitability is 0.30
-lg_lasso_pred30 = as.factor(ifelse(lg_lasso_probs$PRESENCE >= 0.3, "PRESENCE", "ABSENCE"))
-lg_lasso_CM30 = confusionMatrix(data = lg_lasso_pred30, reference = lg_test[-663,]$PRES,
-                              positive = "PRESENCE")
-lg_lasso_CM30 
-
-
-lg_ridge_pred30 = as.factor(ifelse(lg_ridge_probs$PRESENCE >= 0.3, "PRESENCE", "ABSENCE"))
-lg_ridge_CM30 = confusionMatrix(data = lg_ridge_pred30, reference = lg_test[-663,]$PRES,
-                                positive = "PRESENCE")
-lg_ridge_CM30 
-
-
-hs_lasso_pred30 = as.factor(ifelse(hs_lasso_probs$PRESENCE >= 0.3, "PRESENCE", "ABSENCE"))
-hs_lasso_CM30 = confusionMatrix(data = hs_lasso_pred30, reference = hs_test[-663,]$PRES,
-                                positive = "PRESENCE")
-hs_lasso_CM30 
-
-
-hs_ridge_pred30 = as.factor(ifelse(hs_ridge_probs$PRESENCE >= 0.3, "PRESENCE", "ABSENCE"))
-hs_ridge_CM30 = confusionMatrix(data = hs_ridge_pred30, reference = hs_test[-663,]$PRES,
-                                positive = "PRESENCE")
-hs_ridge_CM30 
+# max SSS occurs at a threshold of 68% (remember this is referring to absence),
+# so anything at or above 32% is considered suitable for the bluestriped grunt ridge
+# predict binary response (presence/absence) across testing data and calculate 
+# overall map accuracy, sensitivity, and specificity
+hs_ridge_pred_maxSSS = as.factor(ifelse(hs_ridge_probs$PRESENCE >= 0.32, "PRESENCE", "ABSENCE"))
+hs_ridge_CM_maxSSS = confusionMatrix(data = hs_ridge_pred_maxSSS, reference = hs_test$PRES,
+                                     positive = "PRESENCE")
+hs_ridge_CM_maxSSS 
