@@ -87,6 +87,21 @@ lg_maxent_test_CM_SSS = confusionMatrix(data = lg_maxent_test_predSSS, reference
                                         positive = "PRESENCE")
 lg_maxent_test_CM_SSS 
 
+# 30% threshold
+lg_maxent_train_pred30 = as.factor(ifelse(lg_maxent_train_prob$`raster::extract(lg_maxent_train, lg_train_coords)`>= 0.3,
+                                        "PRESENCE", "ABSENCE"))
+lg_maxent_test_pred30 = as.factor(ifelse(lg_maxent_test_prob$`raster::extract(lg_maxent_test, lg_test_coords)`>= 0.3, 
+                                       "PRESENCE", "ABSENCE"))
+
+# confusion matrix
+lg_maxent_train_CM30 = confusionMatrix(data = lg_maxent_train_pred30, reference = lg_train_pa$PRES, 
+                                     positive = "PRESENCE")
+lg_maxent_train_CM30 
+
+lg_maxent_test_CM30 = confusionMatrix(data = lg_maxent_test_pred30, reference = lg_test_pa$PRES, 
+                                    positive = "PRESENCE")
+lg_maxent_test_CM30 
+
 
 #### BLUESTRIPED GRUNT ####
 
@@ -148,6 +163,21 @@ hs_maxent_train_CM_SSS
 hs_maxent_test_CM_SSS = confusionMatrix(data = hs_maxent_test_predSSS, reference = hs_test_pa$PRES, 
                                         positive = "PRESENCE")
 hs_maxent_test_CM_SSS 
+
+# 30 % threshold
+hs_maxent_train_pred30 = as.factor(ifelse(hs_maxent_train_prob$`raster::extract(hs_maxent_train, hs_train_coords)`>= 0.3,
+                                          "PRESENCE", "ABSENCE"))
+hs_maxent_test_pred30 = as.factor(ifelse(hs_maxent_test_prob$`raster::extract(hs_maxent_test, hs_test_coords)`>= 0.3, 
+                                         "PRESENCE", "ABSENCE"))
+
+# confusion matrix
+hs_maxent_train_CM30 = confusionMatrix(data = hs_maxent_train_pred30, reference = hs_train_pa$PRES, 
+                                       positive = "PRESENCE")
+hs_maxent_train_CM30 
+
+hs_maxent_test_CM30 = confusionMatrix(data = hs_maxent_test_pred30, reference = hs_test_pa$PRES, 
+                                      positive = "PRESENCE")
+hs_maxent_test_CM30 
 
 
 #### RESPONSE CURVES ####
