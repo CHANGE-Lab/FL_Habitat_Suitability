@@ -164,7 +164,7 @@ crs(bias) = my_crs
 # study domain is very large, so select 10,000 background points 
 # (the base settings for MaxEnt)
 bg = as.data.frame(xyFromCell(bias, sample(which(!is.na(values(subset(env2, 1)))), 10000,
-                             prob = values(bias)[!is.na(values(subset(env2, 1)))])))
+                                           prob = values(bias)[!is.na(values(subset(env2, 1)))])))
 bg = bg %>% dplyr::rename(LON_M = x, LAT_M = y)
 write.csv(bg, paste0(temp_wd, "Background_Points.csv"), row.names = FALSE)
 

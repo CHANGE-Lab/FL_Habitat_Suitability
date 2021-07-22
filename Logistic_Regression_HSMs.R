@@ -88,7 +88,7 @@ crs(win_sal) = my_crs
 
 # create raster stack 
 env = stack(x = c(habitat, mg_dist, depth, slope, curvature, bpi_fine, 
-            bpi_broad, rugosity, sum_temp, sum_sal, win_temp, win_sal))
+                  bpi_broad, rugosity, sum_temp, sum_sal, win_temp, win_sal))
 
 # combine fish records and environmental data into dataframe
 lg_full = cbind(lg_occ, raster::extract(env, lg_coords)) 

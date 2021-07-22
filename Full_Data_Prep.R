@@ -1055,16 +1055,16 @@ sampling_effort = sampling_effort[domain, ] %>%
 
 # create a template grid using the habitat raster as a guide
 domain_grid = raster(ncol = ncol(habitat), nrow = nrow(habitat), 
-                    xmn = xmin(habitat), xmx = xmax(habitat), 
-                    ymn = ymin(habitat), ymx = ymax(habitat))
+                     xmn = xmin(habitat), xmx = xmax(habitat), 
+                     ymn = ymin(habitat), ymx = ymax(habitat))
 domain_grid[] <- rep(1,ncell(domain_grid))
 domain_bw = choose_bw(sampling_effort)
 
 # calculate kernel density surface
 domain_kde = sp.kde(x = sampling_effort,
-                   bw = domain_bw,
-                   newdata = domain_grid,
-                   standardize = T)
+                    bw = domain_bw,
+                    newdata = domain_grid,
+                    standardize = T)
 tm_shape(domain_kde) + tm_raster() 
 domain_kde = raster::mask(raster::crop(domain_kde, habitat), habitat)
 compareRaster(domain_kde, habitat, extent = T, crs = T, rowcol = T)
