@@ -198,11 +198,7 @@ lg_glm = caret::train(PRES2 ~ ., lg_train, method = "glm", family = "binomial",
 # ROC, sensitivity, and specificity (*NOTE* caret uses absence as a reference 
 # class, so sensitivity is for absence & specificity is for presence here)
 lg_glm$levels # absence first, so that's specificity
-<<<<<<< HEAD
 lg_glm 
-=======
-lg_glm  
->>>>>>> 4dcab2164ee7ee73c0283087eecab5ecf4bf37b8
 
 # coefficients, deviance, and AIC, where coefficients characterize the relationship 
 # between the predictors and species presence on a log-odds scale
@@ -535,11 +531,8 @@ colnames(hs_ridge_coef) = c("Variable", "Coefficient")
 hs_ridge_coef$Species = rep("Haemulon sciurus", nrow(hs_ridge_coef))
 hs_ridge_coef$Life_Stage = rep("Subadult", nrow(hs_ridge_coef))
 
-<<<<<<< HEAD
-# combine lasso coefficients for both species, repeat for ridge 
-=======
+
 # combine lasso coefficients for both species, repeat for ridge
->>>>>>> 4dcab2164ee7ee73c0283087eecab5ecf4bf37b8
 lasso_coef = rbind(lg_lasso_coef, hs_lasso_coef)
 ridge_coef = rbind(lg_ridge_coef, hs_ridge_coef)
 
@@ -563,12 +556,8 @@ my_pal = pnw_palette("Bay",8)
 my_pal
 
 # lasso coefficients plot
-<<<<<<< HEAD
-lasso_coef_plot = ggplot(data = lasso_coef, aes(x = Coefficient, y = Variable, fill = Species)) +
-=======
 lasso_coef_plot = ggplot(data = lasso_coef, aes(x = Coefficient, y = Variable, 
                                                 fill = Species)) +
->>>>>>> 4dcab2164ee7ee73c0283087eecab5ecf4bf37b8
   geom_vline(xintercept = 0, color = "gray") + geom_point(aes(color = Species)) +
   scale_color_manual(values = c(my_pal[1], my_pal[5])) +
   scale_fill_manual(values = c(my_pal[1], my_pal[5])) +
@@ -587,12 +576,8 @@ lasso_coef_plot = ggplot(data = lasso_coef, aes(x = Coefficient, y = Variable,
 lasso_coef_plot
 
 # ridge coefficients plot
-<<<<<<< HEAD
-ridge_coef_plot = ggplot(data = ridge_coef, aes(x = Coefficient, y = Variable, fill = Species)) +
-=======
 ridge_coef_plot = ggplot(data = ridge_coef, aes(x = Coefficient, y = Variable, 
                                                 fill = Species)) +
->>>>>>> 4dcab2164ee7ee73c0283087eecab5ecf4bf37b8
   geom_vline(xintercept = 0, color = "gray") + geom_point(aes(color = Species)) +
   scale_color_manual(values = c(my_pal[1], my_pal[5])) +
   scale_fill_manual(values = c(my_pal[1], my_pal[5])) +
@@ -618,14 +603,9 @@ ridge_coef_plot2 = ridge_coef_plot + theme(legend.position = "none",  plot.margi
 coef_grid = plot_grid(lasso_coef_plot, ridge_coef_plot2, nrow = 2)
 
 # save plots
-<<<<<<< HEAD
-ggsave(plot = lasso_coef_plot, filename = paste0(temp_plots, "Subadult_Lasso_Coefficients.png"), height = 3.15, 
-       width = 5, units = "in", dpi = 450)
-=======
 ggsave(plot = lasso_coef_plot, filename = paste0(temp_plots, 
                                                  "Subadult_Lasso_Coefficients.png"),
        height = 3.15, width = 5, units = "in", dpi = 450)
->>>>>>> 4dcab2164ee7ee73c0283087eecab5ecf4bf37b8
 
 ggsave(plot = ridge_coef_plot, filename = paste0(temp_plots, "Subadult_Ridge_Coefficients.png"), height = 3.15, 
        width = 5, units = "in", dpi = 450)
@@ -830,11 +810,7 @@ ggsave(plot = ridge_top5_plot, filename = paste0(temp_plots, "Subadult_Ridge_Top
 
 #### RASTERS: CONTINUOUS SUITABILITY PREDICTIONS ####
 # folder path for regression habitat suitability rasters
-<<<<<<< HEAD
-HSMs = "Z:/Courtney/Stuart_MSc_Ch1/HSMs/Logistic_Regression/"
-=======
 HSMs = "E:/Stuart_MSc_Ch1/HSMs/Logistic_Regression/"
->>>>>>> 4dcab2164ee7ee73c0283087eecab5ecf4bf37b8
 
 # make suitability predictions across entire study area
 # FYI: very time consuming step, each model can take upwards of 10 hours to build
@@ -893,19 +869,11 @@ stopCluster(cl)
 # at which each model achieves the maximum sum of training sensitivity + specificity
 # (Max SSS: optimal discrimination between presences & absences), this will indicate
 # how conservative of a suitability cut-off is required when making binary predictions.
-<<<<<<< HEAD
 
 # *NOTE* the thresholder function uses the two levels from the response variable to 
 # calculate statistics. the first outcome level is used for sensitivity and the second 
 # for specificity
 
-=======
-
-# *NOTE* the thresholder function uses the two levels from the response variable to 
-# calculate statistics. the first outcome level is used for sensitivity and the second 
-# for specificity
-
->>>>>>> 4dcab2164ee7ee73c0283087eecab5ecf4bf37b8
 # gray snapper lasso
 lg_lasso$levels
 lg_lasso_th = thresholder(lg_lasso, threshold = seq(0, 1, by = 0.01), 
