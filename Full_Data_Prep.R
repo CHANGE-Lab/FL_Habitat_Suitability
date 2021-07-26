@@ -1,9 +1,9 @@
 #### SET-UP ####
 # This script was used to prepare data for Courtney Stuart's first MSc chapter 
-# in the lab of Dr. Stephanie Green at the University of Alberta. Data are 
-# specific to southern Florida and include: benthic habitat classifications, 
-# bathymetric and topographic surfaces, georeferenced reef fish occurrence 
-# records, and bottom water conditions. These data were used for habitat
+# in the lab of Dr. Stephanie Green at the University of Alberta (2019-2021). 
+# Data are specific to southern Florida and include: benthic habitat 
+# classifications, bathymetric and topographic surfaces, georeferenced reef fish
+# occurrence records, and bottom water conditions. These data were used for habitat
 # suitability modeling, using penalized logistic regression and maximum entropy
 # techniques.
 
