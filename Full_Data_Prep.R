@@ -10,6 +10,9 @@
 # AUTHOR: Courtney Stuart
 # DATE: May 13, 2021
 
+#### TO USE THIS FILE ####
+# This is script 1 of 4 in Courtney's data analysis pipeline
+
 # working directories
 setwd("Z:/Courtney/Stuart_MSc_Ch1/") # main project folder
 
@@ -140,6 +143,7 @@ tm_shape(reef_clip, projection = my_crs) +
   tm_fill("ClassLv1_ID", palette = pal, style = "cat") 
 
 # supplementary shoreline mangrove habitat data
+# (https://geodata.myfwc.com/datasets/mangrove-habitat-in-florida-1/explore)
 mg_shore = 
   st_read(dsn = paste0(source_wd, 
                        "Mangrove_Habitat/Mangrove_Habitat_in_Florida.shp")) %>%
@@ -206,7 +210,8 @@ dems = c('Job606638_ncei_nintharcsec_dem_002_001.tif',
          'Job606638_ncei_nintharcsec_dem_001_001.tif',
          'Job606638_ncei_nintharcsec_dem_001_000.tif',
          'Job606638_ncei_nintharcsec_dem_000_000.tif')
-#'Job606638_ncei_nintharcsec_dem_000_001.tif' # this tile is for Gulf of Mexico, don't need it
+#'Job606638_ncei_nintharcsec_dem_000_001.tif' # this tile is for Gulf side, we don't need it
+
 
 # overall extent of bathy-topo tiles
 e = extent(618778.56, 988742.88, 61706.64, 640446.24)
