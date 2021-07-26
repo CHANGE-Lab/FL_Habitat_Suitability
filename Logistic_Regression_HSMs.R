@@ -9,7 +9,8 @@
 # regression, and ridge-regularized regression. 
 
 #### TO USE THIS FILE ####
-# (If data are not already provided)
+# This is script 3 of 4 in Courtney's data analysis pipeline
+# (follow the steps below unless data are provided by directly by Courtney)
 # First run the Full_Data_Prep.R file located in the FL_Habitat_Suitability 
 # GitHub repository/project, as well as the Seafloor_Morphology geoprocessing 
 # model stored in the accompanying Stuart_MSc_Ch1.gdb ArcGIS geodatabase. These 
