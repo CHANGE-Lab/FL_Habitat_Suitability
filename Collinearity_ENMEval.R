@@ -1,4 +1,24 @@
-#### SET UP ####
+#### SET-UP ####
+# This script is part of Courtney Stuart's first MSc chapter in the lab of 
+# Dr. Stephanie Green at the University of Alberta (2019-2021). This script 
+# assesses correlation among a series of spatial predictors, including: 
+# benthic habitat classifications, bathymetric and topographic surfaces,
+# and bottom water conditions. These data are specific to southern Florida 
+# and were examined using Pearson correlation coefficients and variance
+# inflation factors (VIF) before being used to model habitat suitability for 
+# two critical reef fish in the Florida Keys - gray snapper (Lutjanus griseus
+# (lg)) and bluestriped grunt (Haemulon sciurus (hs)). This script also 
+# includes functions used to optimize settings for the MaxEnt machine
+# learning algorithm. 
+
+# AUTHOR: Courtney Stuart
+
+#### TO USE THIS FILE ####
+# This is script 2 of 4 in Courtney's data analysis pipeline. To prepare 
+# the data required to run this script, please first run the 
+# Full_Data_Prep.R file (unless data are provided by directly by Courtney). 
+
+# libraries
 library(easypackages)
 libraries("raster", "sf", "tmap", "dplyr", "usdm", "rgdal", "usdm",
           "sdmpredictors", "PNWColors", "corrplot", "Cairo")
