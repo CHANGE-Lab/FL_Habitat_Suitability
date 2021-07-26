@@ -7,11 +7,11 @@
 # suitability modeling, using penalized logistic regression and maximum entropy
 # techniques.
 
-# AUTHOR: Courtney Stuart
-# DATE: May 13, 2021
-
 #### TO USE THIS FILE ####
 # This is script 1 of 4 in Courtney's data analysis pipeline
+
+#### CONTACT ####
+# Courtney Stuart (cestuart@ualberta.ca)
 
 # working directories
 setwd("Z:/Courtney/Stuart_MSc_Ch1/") # main project folder
