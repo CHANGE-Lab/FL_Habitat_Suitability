@@ -11,12 +11,13 @@
 # includes functions used to optimize settings for the MaxEnt machine
 # learning algorithm. 
 
-# AUTHOR: Courtney Stuart
-
 #### TO USE THIS FILE ####
 # This is script 2 of 4 in Courtney's data analysis pipeline. To prepare 
 # the data required to run this script, please first run the 
 # Full_Data_Prep.R file (unless data are provided by directly by Courtney). 
+
+#### CONTACT ####
+# Courtney Stuart (cestuart@ualberta.ca)
 
 # libraries
 library(easypackages)
