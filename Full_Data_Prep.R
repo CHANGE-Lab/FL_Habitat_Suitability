@@ -41,7 +41,7 @@ rasterOptions(tmpdir = "Z:/Courtney/Stuart_MSc_Ch1/Temp/")
 # and source LAT/LON data (EPSG:4326 WGS 84/World Geodetic System 1984)
 my_crs = CRS("+init=epsg:26958")
 gcs = CRS("+init=epsg:4326")
-us_ft = CRS("+init=epsg:2236") 
+us_ft = CRS("+init=epsg:2236")
 
 #### HABITAT & DEPTH DATA ####
 # read in park/marine sanctuary polygons
@@ -211,7 +211,6 @@ dems = c('Job606638_ncei_nintharcsec_dem_002_001.tif',
          'Job606638_ncei_nintharcsec_dem_001_000.tif',
          'Job606638_ncei_nintharcsec_dem_000_000.tif')
 #'Job606638_ncei_nintharcsec_dem_000_001.tif' # this tile is for Gulf side, we don't need it
-
 
 # overall extent of bathy-topo tiles
 e = extent(618778.56, 988742.88, 61706.64, 640446.24)
