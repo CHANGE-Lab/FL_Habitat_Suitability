@@ -1715,6 +1715,7 @@ writeRaster(s_do2, filename = paste0(spatial_wd, "Mean_Sum_DO.asc"),
             format = "ascii", overwrite = T)
 
 #### SEAFLOOR MORPHOLOGY ####
+# ** Run this only after the ArcGIS geoprocessing model has finished running **
 # Though the seafloor surface morphology rasters exported from ArcGIS were
 # calculated using the depth raster, ArcGIS and RStudio export ASCII rasters with
 # a slightly different level of precision, causing their extents to vary a bit. 
@@ -1763,3 +1764,123 @@ StDev_Depth = raster(paste0(temp_wd, "Depth_sdev_003.tif"))
 crs(rugosity) = my_crs
 writeRaster(StDev_Depth, paste0(spatial_wd, "StDev_Depth.asc"),
             format = "ascii", overwrite = TRUE)
+
+#### COMBINING FISH AND ENVIRONMENTAL DATA ####
+# remove (tiff) and reload (ASCII) environmental rasters to be sure that we have
+# the final raster data layer copies
+rm(list = c("bpi_broad", "bpi_fine", "curvature", "plan_curve",
+            "slope", "rugosity", "StDev_Depth"))
+
+# all ASCII spatial predictors
+habitat = raster(paste0(spatial_wd, "Habitat.asc"))
+mg_dist = raster(paste0(spatial_wd, "Mangrove_Dist.asc"))
+depth = raster(paste0(spatial_wd, "Depth.asc"))
+sd_depth = raster(paste0(spatial_wd, "StDev_Depth.asc"))
+slope = raster(paste0(spatial_wd, "Slope.asc"))
+curvature = raster(paste0(spatial_wd, "Curvature.asc"))
+plan_curve = raster(paste0(spatial_wd, "Plan_Curve.asc"))
+bpi_fine = raster(paste0(spatial_wd, "BPI_Fine.asc"))
+bpi_broad = raster(paste0(spatial_wd, "BPI_Broad.asc"))
+rugosity = raster(paste0(spatial_wd, "Rugosity.asc"))
+sum_temp = raster(paste0(spatial_wd, "Mean_Sum_Temp.asc"))
+sum_do = raster(paste0(spatial_wd, "Mean_Sum_DO.asc"))
+sum_sal = raster(paste0(spatial_wd, "Mean_Sum_Sal.asc"))
+win_temp = raster(paste0(spatial_wd, "Mean_Win_Temp.asc"))
+win_do = raster(paste0(spatial_wd, "Mean_Win_DO.asc"))
+win_sal = raster(paste0(spatial_wd, "Mean_Win_Sal.asc"))
+
+# define crs
+crs(habitat) = my_crs
+crs(mg_dist) = my_crs
+crs(depth) = my_crs
+crs(sd_depth) = my_crs
+crs(slope) = my_crs
+crs(curvature) = my_crs
+crs(plan_curve) = my_crs
+crs(bpi_fine) = my_crs
+crs(bpi_broad) = my_crs
+crs(rugosity) = my_crs
+crs(sum_temp) = my_crs
+crs(sum_do) = my_crs
+crs(sum_sal) = my_crs
+crs(win_temp) = my_crs
+crs(win_do) = my_crs
+crs(win_sal) = my_crs
+
+# create raster stack 
+env = stack(x = c(habitat, mg_dist, depth, sd_depth, slope, curvature, 
+                  plan_curve, bpi_fine, bpi_broad, rugosity, sum_temp, sum_do, 
+                  sum_sal, win_temp, win_do, win_sal))
+
+# read in the full occurrence records for each species. we will extract the 
+# environmental conditions from each environmental raster data layer at these 
+# point locations.
+# sub-adult gray snapper (Lutjanus griseus)
+lg_occ = read.csv(paste0(fish_wd, "Presence_Absence/Subadult_Gray_Snapper_PA_Full.csv"))
+lg_coords = lg_occ %>% dplyr::select(LON_M, LAT_M) %>%
+  st_as_sf(., coords = c("LON_M", "LAT_M"), crs = my_crs)
+
+# sub-adult bluestriped grunt
+hs_occ = read.csv(paste0(fish_wd, "Presence_Absence/Subadult_Bluestriped_Grunt_PA_Full.csv"))
+hs_coords = hs_occ %>% dplyr::select(LON_M, LAT_M) %>%
+  st_as_sf(., coords = c("LON_M", "LAT_M"), crs = my_crs)
+
+# combine fish records and environmental data into dataframe
+# sub-adult gray snapper
+lg_full = cbind(lg_occ, raster::extract(env, lg_coords)) 
+lg_full = as.data.frame(lg_full) %>%
+  mutate(PRES = as.factor(PRES),
+         PRES2 = as.factor(ifelse(lg_full$PRES == 1, "PRESENCE", "ABSENCE"))) %>%
+  relocate(PRES2, .after = PRES)
+
+# save the full dataset to GitHub repo
+write.csv(lg_full, paste0(csv_wd, "Subadult_Gray_Snapper_Full_Dataset.csv"), 
+          row.names = F)
+
+# repeat for sub-adult bluestriped grunts
+hs_full = cbind(hs_occ, raster::extract(env, hs_coords))
+hs_full = as.data.frame(hs_full) %>%
+  mutate(PRES = as.factor(PRES),
+         PRES2 = as.factor(ifelse(hs_full$PRES == 1, "PRESENCE", "ABSENCE"))) %>%
+  relocate(PRES2, .after = PRES)
+
+# save full dataset to GitHub
+write.csv(hs_full, paste0(csv_wd, "Subadult_Bluestriped_Grunt_Full_Dataset.csv"),
+          row.names = F)
+
+# randomly split data for model calibration and evaluation (70-30%, respectively)
+library(ISLR)
+set.seed(123)   # set seed to ensure repeatability
+lg_train_id = sample(seq_len(nrow(lg_full)), size = floor(0.70*nrow(lg_full)))  
+lg_train = lg_full[lg_train_id,] # creates the training dataset (70%)
+lg_test = lg_full[-lg_train_id,]  # creates the test dataset (30%)
+
+hs_train_id = sample(seq_len(nrow(hs_full)), size = floor(0.70*nrow(hs_full)))  
+hs_train = hs_full[hs_train_id,] # creates the training dataset (70%)
+hs_test = hs_full[-hs_train_id,]  # creates the test dataset (30%)
+
+# save training records (presence-only) for MaxEnt
+write.csv((lg_train %>% 
+             filter(PRES == 1) %>% 
+             dplyr::select(SPECIES_CD, LON_M, LAT_M)), 
+          paste0(fish_wd, "Presence_Only/Subadult_Gray_Snapper_PO_Train.csv"), 
+          row.names = F)
+
+write.csv((hs_train %>% 
+             filter(PRES == 1) %>% 
+             dplyr::select(SPECIES_CD, LON_M, LAT_M)), 
+          paste0(fish_wd, "Presence_Only/Subadult_Bluestriped_Grunt_PO_Train.csv"), 
+          row.names = F)
+
+# save testing records (presence-only) for MaxEnt
+write.csv((lg_test %>% 
+             filter(PRES == 1) %>% 
+             dplyr::select(SPECIES_CD, LON_M, LAT_M)), 
+          paste0(fish_wd, "Presence_Only/Subadult_Gray_Snapper_PO_Test.csv"), 
+          row.names = F)
+
+write.csv((hs_test %>% 
+             filter(PRES == 1) %>% 
+             dplyr::select(SPECIES_CD, LON_M, LAT_M)), 
+          paste0(fish_wd, "Presence_Only/Subadult_Bluestriped_Grunt_PO_Test.csv"), 
+          row.names = F)
