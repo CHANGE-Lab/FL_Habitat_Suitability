@@ -3,10 +3,10 @@
 # Dr. Stephanie Green at the University of Alberta (2019-2021). Data are specific 
 # to southern Florida, including the georeferenced occurrence records of two reef 
 # fish species (gray snapper Lutjanus griseus (lg) and bluestriped grunt Haemulon 
-# sciurus (hs)) and raster data layers of various environmental predictors. 
-# Three logistic regression models were fit for each species to create habitat 
-# suitability predictions: standard logistic regression, lasso-regularized 
-# regression, and ridge-regularized regression. 
+# sciurus (hs)) and various environmental predictors. Three logistic regression 
+# models were fit for each species to create habitat suitability predictions: 
+# standard logistic regression, lasso-regularized regression, and 
+# ridge-regularized regression. 
 
 #### TO USE THIS FILE ####
 # This is script 3 of 4 in Courtney's data analysis pipeline
@@ -28,9 +28,6 @@ setwd("Z:/Courtney/Stuart_MSc_Ch1/") # main project folder
 # data directories 
 temp_wd = "Z:/Courtney/Stuart_MSc_Ch1/Temporary/" # temporary files
 csv_wd = "Z:/Courtney/Stuart_MSc_Ch1/GitHub/FL_Habitat_Suitability/Data/" # for writing tabular data
-fish_wd = "Z:/Courtney/Stuart_MSc_Ch1/Species_Occurrence/" # for fish data
-spatial_wd = "Z:/Courtney/Stuart_MSc_Ch1/Spatial_Predictors/" # for spatial predictor rasters
-gis_wd = "Z:/Courtney/Stuart_MSc_Ch1/GIS_Files/" # for any GIS shapefiles
 plots_wd = "Z:/Courtney/Stuart_MSc_Ch1/GitHub/FL_Habitat_Suitability/Figures/" # final figures
 temp_plots = "Z:/Courtney/Stuart_MSc_Ch1/Plots/" # temp plots for Courtney only
 
@@ -43,79 +40,16 @@ conflicted::conflict_prefer("filter", "dplyr")
 conflicted::conflict_prefer("makeCluster", "parallel")
 conflicted::conflict_prefer("stopCluster", "parallel")
 
-# save PROJ.4 string for standard projection (ESPG:26958 NAD 83/Florida East) and source LAT/LON data (EPSG:4326 WGS 84/World Geodetic System 1984)
-my_crs = CRS("+init=epsg:26958")
-
-# extract data values from the 12 spatial predictors at the point locations
-# of each presence-absence record (following multicollinearity assessment)
-
-# sub-adult gray snapper (Lutjanus griseus)
-lg_occ = read.csv(paste0(fish_wd, "Presence_Absence/Subadult_Gray_Snapper_PA_Full.csv"))
-lg_coords = lg_occ %>% dplyr::select(LON_M, LAT_M) %>%
-  st_as_sf(., coords = c("LON_M", "LAT_M"), crs = my_crs)
-
-# sub-adult bluestriped grunt
-hs_occ = read.csv(paste0(fish_wd, "Presence_Absence/Subadult_Bluestriped_Grunt_PA_Full.csv"))
-hs_coords = hs_occ %>% dplyr::select(LON_M, LAT_M) %>%
-  st_as_sf(., coords = c("LON_M", "LAT_M"), crs = my_crs)
-
-# load environmental rasters (only those retained after multicollinearity check)
-habitat = raster(paste0(spatial_wd, "Habitat.asc"))
-mg_dist = raster(paste0(spatial_wd, "Mangrove_Dist.asc"))
-depth = raster(paste0(spatial_wd, "Depth.asc"))
-slope = raster(paste0(spatial_wd, "Slope.asc"))
-curvature = raster(paste0(spatial_wd, "Curvature.asc"))
-bpi_fine = raster(paste0(spatial_wd, "BPI_Fine.asc"))
-bpi_broad = raster(paste0(spatial_wd, "BPI_Broad.asc"))
-rugosity = raster(paste0(spatial_wd, "Rugosity.asc"))
-sum_temp = raster(paste0(spatial_wd, "Mean_Sum_Temp.asc"))
-sum_sal = raster(paste0(spatial_wd, "Mean_Sum_Sal.asc"))
-win_temp = raster(paste0(spatial_wd, "Mean_Win_Temp.asc"))
-win_sal = raster(paste0(spatial_wd, "Mean_Win_Sal.asc"))
-
-# define crs
-crs(habitat) = my_crs
-crs(mg_dist) = my_crs
-crs(depth) = my_crs
-crs(slope) = my_crs
-crs(curvature) = my_crs
-crs(bpi_fine) = my_crs
-crs(bpi_broad) = my_crs
-crs(rugosity) = my_crs
-crs(sum_temp) = my_crs
-crs(sum_sal) = my_crs
-crs(win_temp) = my_crs
-crs(win_sal) = my_crs
-
-# create raster stack 
-env = stack(x = c(habitat, mg_dist, depth, slope, curvature, bpi_fine, 
-                  bpi_broad, rugosity, sum_temp, sum_sal, win_temp, win_sal))
-
-# combine fish records and environmental data into dataframe
-lg_full = cbind(lg_occ, raster::extract(env, lg_coords)) 
-lg_full = as.data.frame(lg_full) %>%
+# read in the full datasets from the GitHub repo and repeat the random split
+lg_full = read.csv(paste0(csv_wd, "Subadult_Gray_Snapper_Full_Dataset.csv")) %>%
   mutate(PRES = as.factor(PRES),
+         PRES2 = as.factor(PRES2),
          Habitat = as.factor(Habitat))
 
-# re-label response variable (1 = presence, 0 = absence) & convert to
-# factor, otherwise caret will return errors later
-lg_full$PRES2 = as.factor(ifelse(lg_full$PRES == 1, "PRESENCE", "ABSENCE"))
-lg_full = lg_full %>% relocate(PRES2, .after = PRES)
-# save data frame to csv
-write.csv(lg_full, paste0(csv_wd, "Subadult_Gray_Snapper_Full_Dataset.csv"), row.names = F)
-
-# repeat for sub-adult bluestriped grunts
-hs_full = cbind(hs_occ, raster::extract(env, hs_coords))
-hs_full = as.data.frame(hs_full) %>%
+hs_full = read.csv(paste0(csv_wd, "Subadult_Bluestriped_Grunt_Full_Dataset.csv")) %>%
   mutate(PRES = as.factor(PRES),
+         PRES2 = as.factor(PRES2),
          Habitat = as.factor(Habitat))
-
-# re-label response variable (1 = presence, 0 = absence) & convert to factor
-hs_full$PRES2 = as.factor(ifelse(hs_full$PRES == 1, "PRESENCE", "ABSENCE"))
-hs_full = hs_full %>% relocate(PRES2, .after = PRES)
-# save data frame to csv
-write.csv(hs_full, paste0(csv_wd, "Subadult_Bluestriped_Grunt_Full_Dataset.csv"),
-          row.names = F)
 
 # randomly split data for model calibration and evaluation (70-30%, respectively)
 library(ISLR)
@@ -127,32 +61,6 @@ lg_test = lg_full[-lg_train_id,]  # creates the test dataset (30%)
 hs_train_id = sample(seq_len(nrow(hs_full)), size = floor(0.70*nrow(hs_full)))  
 hs_train = hs_full[hs_train_id,] # creates the training dataset (70%)
 hs_test = hs_full[-hs_train_id,]  # creates the test dataset (30%)
-
-# save training records (presence-only) for MaxEnt
-write.csv((lg_train %>% 
-             filter(PRES == 1) %>% 
-             dplyr::select(SPECIES_CD, LON_M, LAT_M)), 
-          paste0(fish_wd, "Presence_Only/Subadult_Gray_Snapper_PO_Train.csv"), 
-          row.names = F)
-
-write.csv((hs_train %>% 
-             filter(PRES == 1) %>% 
-             dplyr::select(SPECIES_CD, LON_M, LAT_M)), 
-          paste0(fish_wd, "Presence_Only/Subadult_Bluestriped_Grunt_PO_Train.csv"), 
-          row.names = F)
-
-# save testing records (presence-only) for MaxEnt
-write.csv((lg_test %>% 
-             filter(PRES == 1) %>% 
-             dplyr::select(SPECIES_CD, LON_M, LAT_M)), 
-          paste0(fish_wd, "Presence_Only/Subadult_Gray_Snapper_PO_Test.csv"), 
-          row.names = F)
-
-write.csv((hs_test %>% 
-             filter(PRES == 1) %>% 
-             dplyr::select(SPECIES_CD, LON_M, LAT_M)), 
-          paste0(fish_wd, "Presence_Only/Subadult_Bluestriped_Grunt_PO_Test.csv"), 
-          row.names = F)
 
 # keep only what is needed for logistic regression via caret
 lg_train = lg_train %>% dplyr::select(PRES2, Habitat, Mangrove_Dist, Depth, Slope, 
@@ -179,7 +87,7 @@ hs_test = hs_test %>% dplyr::select(PRES2, Habitat, Mangrove_Dist, Depth, Slope,
                                     Curvature, BPI_Fine, BPI_Broad, Rugosity,
                                     Mean_Sum_Temp, Mean_Sum_Sal, Mean_Win_Temp, 
                                     Mean_Win_Sal)
-hs_test$PRES2 = relevel(hs_test$PRES2, ref = "ABSENCE") 
+hs_test$PRES2 = relevel(hs_test$PRES2, ref = "ABSENCE")
 
 #### GRAY SNAPPER MODELS ####
 #### Standard Logistic Regression ####
@@ -802,12 +710,24 @@ ridge_top5_plot = ridge_top5_plot +
                               "Unconsolidated Sediment.26.5684577330772.Haemulon sciurus" = "Unconsolidated Sediment"))
 ridge_top5_plot
 
+# make a second ridge figure without the legend so it can be placed below the 
+# lasso plot in a single figure (cowplot)
+ridge_top5_plot2 = ridge_top5_plot + theme(legend.position = "none")
+
+# cowplot with both top 5 plots
+coef_grid2 = plot_grid(lasso_top5_plot, ridge_top5_plot2, nrow = 2)
+coef_grid2
+
 # save plots
 ggsave(plot = lasso_top5_plot, filename = paste0(temp_plots, "Subadult_Lasso_Top5_Variables.png"), 
        height = 5, width = 8.5, units = "in", dpi = 450)
 
 ggsave(plot = ridge_top5_plot, filename = paste0(temp_plots, "Subadult_Ridge_Top5_Variables.png"), 
        height = 5, width = 8.5, units = "in", dpi = 450)
+
+# save the combined plot to GitHub
+ggsave(plot = coef_grid2, filename = paste0(plots_wd, "Subadult_Regression_Top5_Variables.png"), 
+       height = 5, width = 7, units = "in", dpi = 300)
 
 #### RASTERS: CONTINUOUS SUITABILITY PREDICTIONS ####
 # folder path for regression habitat suitability rasters
