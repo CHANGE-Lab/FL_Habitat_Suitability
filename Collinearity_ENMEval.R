@@ -179,14 +179,13 @@ system.file("java", package = "dismo")
 bias = raster(paste0(fish_wd, "Presence_Only/Bias.asc"))
 crs(bias) = my_crs
 
-# how many possible background points are available? 
-# length(which(!is.na(values(subset(env2, 1)))))
-
 # study domain is very large, so select 10,000 background points 
 # (the base settings for MaxEnt)
 bg = as.data.frame(xyFromCell(bias, sample(which(!is.na(values(subset(env2, 1)))), 10000,
                                            prob = values(bias)[!is.na(values(subset(env2, 1)))])))
 bg = bg %>% dplyr::rename(LON_M = x, LAT_M = y)
+
+# save to our temporary folder just in case
 write.csv(bg, paste0(temp_wd, "Background_Points.csv"), row.names = FALSE)
 
 # run evaluation using 10-fold cross-validation & background points selected based
@@ -211,20 +210,3 @@ hs_enm_eval = ENMevaluate(hs_pres_only, env2, method = "randomkfold", kfolds = 1
                           parallel = TRUE, numCores = no_cores, progbar = TRUE,
                           updateProgress = TRUE)
 write.csv(hs_enm_eval@results, paste(enm_wd, "Subadult_Bluestriped_Grunt_ENMeval.csv"))
-
-
-#lg_enm_eval = ENMevaluate(occs = lg_pres_only,
-#                         envs = env2,
-#                        bg = bg,
-#                       tune.args = list(fc = c("L", "LQ", "LQH", "LQHP"),
-#                                       rm = c(0.25, 0.50, 1.0, 2.0, 5.0)),
-#                     partitions = "randomkfold", 
-#                    algorithm = "maxent.jar",
-#                   partition.settings = list(kfolds = 10),
-#                  categoricals = "Habitat", 
-#                 parallel = TRUE, 
-#                parallelType = "doParallel",
-#               numCores = no_cores,
-#              progbar = TRUE)
-# write.csv(lg_enm_eval@results, paste(enm_wd, "Subadult_Gray_Snapper_ENMeval.csv"))
-# rm(lg_enm_eval)
