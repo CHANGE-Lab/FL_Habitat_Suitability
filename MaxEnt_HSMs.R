@@ -33,8 +33,6 @@ setwd("Z:/Courtney/Stuart_MSc_Ch1/") # main project folder
 temp_wd = "Z:/Courtney/Stuart_MSc_Ch1/Temporary/" # temporary files
 csv_wd = "Z:/Courtney/Stuart_MSc_Ch1/GitHub/FL_Habitat_Suitability/Data/" # for writing tabular data
 fish_wd = "Z:/Courtney/Stuart_MSc_Ch1/Species_Occurrence/" # for fish data
-spatial_wd = "Z:/Courtney/Stuart_MSc_Ch1/Spatial_Predictors/" # for spatial predictor rasters
-gis_wd = "Z:/Courtney/Stuart_MSc_Ch1/GIS_Files/" # for any GIS shapefiles
 plots_wd = "Z:/Courtney/Stuart_MSc_Ch1/GitHub/FL_Habitat_Suitability/Figures/" # final figures
 temp_plots = "Z:/Courtney/Stuart_MSc_Ch1/Plots/" # temp plots for Courtney only
 HSMs = "Z:/Courtney/Stuart_MSc_Ch1/HSMs/" # habitat suitability maps
