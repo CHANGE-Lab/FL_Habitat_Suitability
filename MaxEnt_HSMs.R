@@ -101,7 +101,7 @@ lg_maxent_test_CM_SSS = confusionMatrix(data = lg_maxent_test_predSSS, reference
                                         positive = "PRESENCE")
 lg_maxent_test_CM_SSS 
 
-#### CONFUSION MATRICES - GRAY SNAPPER ####
+#### CONFUSION MATRICES - BLUESTRIPED GRUNT ####
 # read in sub-adult bluestriped grunt presence-absence records
 hs_full = read.csv(paste0(fish_wd, "Presence_Absence/Subadult_Bluestriped_Grunt_PA_Full.csv"))
 hs_full = hs_full %>%
@@ -1739,8 +1739,3 @@ lambdas_plot
 # save plot
 ggsave(plot = lambdas_plot, filename = paste0(temp_plots, "Subadult_MaxEnt_Coefficients.png"), 
        height = 5, width = 7, units = "in", dpi = 300)
-
-#### SPECIES OVERLAP ####
-# overlap on a scale of 0 (no overlap) to 1 (identical)
-overlap = nicheOverlap(lg_maxent, hs_maxent, stat = 'I', 
-                       mask = FALSE, checkNegatives = FALSE)
