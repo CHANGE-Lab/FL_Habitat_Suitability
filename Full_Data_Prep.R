@@ -747,7 +747,7 @@ hs_adult$LIFE_STAGE = rep("ADULT", nrow(hs_adult)) # specify that these are all 
 hs_adult$PRES = ifelse(hs_adult$N > 0, 1, 0) # if at least one adult was seen at the SSU, it's a presence [1], else an absence [0]
 hs_adult$SOURCE = rep("REEF VISUAL CENSUS", nrow(hs_adult)) # source column for when RVC and MG data are compiled
 
-# now the inferred absences sites (sites where either no gray bluestriped grunts 
+# now the inferred absences sites (sites where either no bluestriped grunts 
 # were seen or only those of another age class were seen)
 hs_adult_abs = rvc %>%
   group_by(REGION, STRAT, PRIMARY_SAMPLE_UNIT, STATION_NR, LAT_DEGREES, LON_DEGREES, SPECIES_CD) %>%
@@ -1556,7 +1556,7 @@ crs(w_temp) = my_crs
 extent = extent(raster(paste0(spatial_wd, "Habitat.asc")))
 w_temp2 = extend(w_temp, extent)
 w_temp2
-writeRaster(w_temp2, filename = paste0(spatial_wd, "Mean_win_Temp.asc"), 
+writeRaster(w_temp2, filename = paste0(spatial_wd, "Mean_Win_Temp.asc"), 
             format = "ascii", overwrite = T)
 
 # winter salinity
