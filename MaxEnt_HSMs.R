@@ -1596,12 +1596,12 @@ maxent_top5_plot = ggplot((maxent_top5 %>% group_by(Species)),
 maxent_top5_plot
 
 maxent_top5_plot = maxent_top5_plot + 
-  scale_x_discrete(labels = c("Habitat.52.4547.Lutjanus griseus" = "Habitat",
+  scale_x_discrete(labels = c("Habitat.52.4547.Lutjanus griseus" = "Habitat Type",
                               "Mangrove Distance.28.5308.Lutjanus griseus" = "Mangrove Distance",
                               "Slope.10.4724.Lutjanus griseus" = "Slope",
                               "Depth.5.9223.Lutjanus griseus" = "Depth",
                               "BPI Broad.2.2804.Lutjanus griseus" = "BPI Broad",
-                              "Habitat.56.8971.Haemulon sciurus" = "Habitat",
+                              "Habitat.56.8971.Haemulon sciurus" = "Habitat Type",
                               "Slope.28.0711.Haemulon sciurus" = "Slope",
                               "Mangrove Distance.9.2806.Haemulon sciurus" = "Mangrove Distance",
                               "Depth.4.02.Haemulon sciurus" = "Depth",
