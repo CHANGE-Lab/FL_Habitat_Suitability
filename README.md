@@ -5,4 +5,5 @@ What spatial patterns and environmental conditions drive the distribution of sui
 If you have questions, want to know more about this work, or would like to request access to the large spatial datasets produced in this project please contact Courtney Stuart (@cestuart@ualberta.ca).
 
 You may use and borrow from this code base in accordance with the license. This code accompanies the paper below, a DOI will be pasted in this repository once available. 
+
 Stuart, C.E.; Wedding, L.M.; Pittman, S.J.; Green, S.J. Habitat suitability modeling to inform seascape connectivity conservation and management. *Diversity (Invited Submission, In Prep)*. 
