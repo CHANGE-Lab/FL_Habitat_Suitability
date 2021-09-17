@@ -44,6 +44,8 @@ libraries("glmnet", "tidyverse", "tidyr", "caret", "MLeval", "dplyr", "raster",
           "dismo", "conflicted")
 conflicted::conflict_prefer("select", "dplyr")
 conflicted::conflict_prefer("filter", "dplyr")
+conflicted::conflict_prefer("ylim", "ggplot2")
+conflicted::conflict_prefer("xlim", "ggplot2")
 
 # save PROJ.4 string for standard projection (ESPG:26958 NAD 83/Florida East)
 my_crs = CRS("+init=epsg:26958")
@@ -278,8 +280,8 @@ hab_plot = ggplot(hab_summary, aes(x = Hab_Name, y = Mean_HSI, fill = Species, w
 hab_plot
 
 # save plot
-ggsave(filename = paste0(temp_plots, "Habitat_Curve.png"), hab_plot, width = 5,
-       height = 3.15, units = "in", dpi = 450)
+ggsave(filename = paste0(temp_plots, "Habitat_Curve.png"), hab_plot, width = 6,
+       height = 4, units = "in", dpi = 300)
 
 #### MANGROVE DISTANCE ####
 # gray snapper
@@ -371,8 +373,9 @@ mg_summary = rbind(lg_mg_summary, hs_mg_summary)
 
 # plot relationships
 mg_plot = 
-  ggplot(mg_summary, aes(y = Mean_HSI, x = MG_Dist, group = Species, color = Species, fill = Species)) +
-  geom_point(aes(color = Species)) +
+  ggplot(mg_summary, aes(y = Mean_HSI, x = MG_Dist, group = Species, 
+                         color = Species, fill = Species)) +
+  geom_point(aes(color = Species), size = 0.5) +
   geom_line(aes(color = Species)) +
   scale_color_manual(values = c(my_pal[1], my_pal[5])) +
   scale_fill_manual(values = c(my_pal[1], my_pal[5])) +
@@ -380,7 +383,7 @@ mg_plot =
               alpha = 0.3, show.legend = FALSE) +
   xlab("Distance to nearest mangrove (m)") +
   ylab("Relative habitat suitability") + ylim(0, 1) + 
-  scale_x_continuous(breaks=seq(0, 20000, 2000)) +
+  scale_x_continuous(breaks=seq(0, 20000, 5000)) +
   theme_bw() + theme(legend.position = "top", legend.title = element_blank(),
                      panel.border = element_blank(), panel.grid.major = element_blank(),
                      panel.grid.minor = element_blank(), 
@@ -389,8 +392,8 @@ mg_plot =
 mg_plot
 
 # save plot
-ggsave(filename = paste0(temp_plots, "Mangrove_Dist_Curve.png"), mg_plot, width = 3.15,
-       height = 3.15, units = "in", dpi = 450)
+ggsave(filename = paste0(temp_plots, "Mangrove_Dist_Curve2.png"), mg_plot, 
+       width = 3.15, height = 3.15, units = "in", dpi = 300)
 
 #### DEPTH ####
 # gray snapper
@@ -482,8 +485,9 @@ hs_depth_summary = hs_depth_df %>%
 # combined depth results
 depth_summary = rbind(lg_depth_summary, hs_depth_summary)
 
-depth_plot = ggplot(depth_summary, aes(y = Mean_HSI, x = Depth, group = Species, color = Species, fill = Species)) +
-  geom_point(aes(color = Species)) +
+depth_plot = ggplot(depth_summary, aes(y = Mean_HSI, x = Depth, group = Species, 
+                                       color = Species, fill = Species)) +
+  geom_point(aes(color = Species), size = 0.5) +
   geom_line(aes(color = Species)) +
   scale_color_manual(values = c(my_pal[1], my_pal[5])) +
   scale_fill_manual(values = c(my_pal[1], my_pal[5])) +
@@ -500,8 +504,8 @@ depth_plot = ggplot(depth_summary, aes(y = Mean_HSI, x = Depth, group = Species,
 depth_plot
 
 # save plot
-ggsave(filename = paste0(temp_plots, "Depth_Curve.png"), depth_plot, width = 3.15,
-       height = 3.15, units = "in", dpi = 450)
+ggsave(filename = paste0(temp_plots, "Depth_Curve.png"), depth_plot, 
+       width = 3.15, height = 3.15, units = "in", dpi = 300)
 
 #### SLOPE ####
 # gray snapper
@@ -591,14 +595,15 @@ hs_slope_summary = hs_slope_df %>%
 # combined slope results
 slope_summary = rbind(lg_slope_summary, hs_slope_summary)
 
-slope_plot = ggplot(slope_summary, aes(y = Mean_HSI, x = Slope, group = Species, color = Species, fill = Species)) +
-  geom_point(aes(color = Species)) +
+slope_plot = ggplot(slope_summary, aes(y = Mean_HSI, x = Slope, group = Species, 
+                                       color = Species, fill = Species)) +
+  geom_point(aes(color = Species), size = 0.5) +
   geom_line(aes(color = Species)) +
   scale_color_manual(values = c(my_pal[1], my_pal[5])) +
   scale_fill_manual(values = c(my_pal[1], my_pal[5])) +
   geom_ribbon(aes(ymin = Mean_HSI - SD_HSI, ymax = Mean_HSI + SD_HSI),
               alpha = 0.3, show.legend = FALSE) +
-  xlab("Slope (Degrees)") +
+  xlab("Slope (degrees)") +
   ylab("Relative habitat suitability") + ylim(0, 1) +
   theme_bw() + theme(legend.position = "top", legend.title = element_blank(),
                      panel.border = element_blank(), panel.grid.major = element_blank(),
@@ -608,8 +613,8 @@ slope_plot = ggplot(slope_summary, aes(y = Mean_HSI, x = Slope, group = Species,
 slope_plot
 
 # save plot
-ggsave(filename = paste0(temp_plots, "Slope_Curve.png"), slope_plot, width = 3.15,
-       height = 3.15, units = "in", dpi = 450)
+ggsave(filename = paste0(temp_plots, "Slope_Curve.png"), slope_plot, 
+       width = 3.15, height = 3.15, units = "in", dpi = 300)
 
 #### RUGOSITY ####
 # gray snapper
@@ -699,8 +704,9 @@ hs_rug_summary = hs_rug_df %>%
 # combined rugosity results
 rug_summary = rbind(lg_rug_summary, hs_rug_summary)
 
-rug_plot = ggplot(rug_summary, aes(y = Mean_HSI, x = Rug, group = Species, color = Species, fill = Species)) +
-  geom_point(aes(color = Species)) +
+rug_plot = ggplot(rug_summary, aes(y = Mean_HSI, x = Rug, group = Species, 
+                                   color = Species, fill = Species)) +
+  geom_point(aes(color = Species), size = 0.5) +
   geom_line(aes(color = Species)) +
   scale_color_manual(values = c(my_pal[1], my_pal[5])) +
   scale_fill_manual(values = c(my_pal[1], my_pal[5])) +
@@ -716,8 +722,8 @@ rug_plot = ggplot(rug_summary, aes(y = Mean_HSI, x = Rug, group = Species, color
 rug_plot
 
 # save plot
-ggsave(filename = paste0(temp_plots, "Rugosity_Curve.png"), rug_plot, width = 3.15,
-       height = 3.15, units = "in", dpi = 450)
+ggsave(filename = paste0(temp_plots, "Rugosity_Curve.png"), rug_plot, 
+       width = 3.15, height = 3.15, units = "in", dpi = 300)
 
 #### CURVATURE ####
 # gray snapper
@@ -806,8 +812,9 @@ hs_curv_summary = hs_curv_df %>%
 # combined curvature results
 curv_summary = rbind(lg_curv_summary, hs_curv_summary)
 
-curv_plot = ggplot(curv_summary, aes(y = Mean_HSI, x = Curvature, group = Species, color = Species, fill = Species)) +
-  geom_point(aes(color = Species)) +
+curv_plot = ggplot(curv_summary, aes(y = Mean_HSI, x = Curvature, group = Species, 
+                                     color = Species, fill = Species)) +
+  geom_point(aes(color = Species), size = 0.5) +
   geom_line(aes(color = Species)) +
   scale_color_manual(values = c(my_pal[1], my_pal[5])) +
   scale_fill_manual(values = c(my_pal[1], my_pal[5])) +
@@ -823,8 +830,8 @@ curv_plot = ggplot(curv_summary, aes(y = Mean_HSI, x = Curvature, group = Specie
 curv_plot
 
 # save plot
-ggsave(filename = paste0(temp_plots, "Curvature_Curve.png"), curv_plot, width = 3.15,
-       height = 3.15, units = "in", dpi = 450)
+ggsave(filename = paste0(temp_plots, "Curvature_Curve.png"), curv_plot, 
+       width = 3.15, height = 3.15, units = "in", dpi = 300)
 
 #### BPI FINE ####
 # gray snapper
@@ -911,8 +918,9 @@ hs_bpiF_summary = hs_bpiF_df %>%
 
 bpiF_summary = rbind(lg_bpiF_summary, hs_bpiF_summary)
 
-bpiF_plot = ggplot(bpiF_summary, aes(y = Mean_HSI, x = BPI_Fine, group = Species, color = Species, fill = Species)) +
-  geom_point(aes(color = Species)) +
+bpiF_plot = ggplot(bpiF_summary, aes(y = Mean_HSI, x = BPI_Fine, group = Species,
+                                     color = Species, fill = Species)) +
+  geom_point(aes(color = Species), size = 0.5) +
   geom_line(aes(color = Species)) +
   scale_color_manual(values = c(my_pal[1], my_pal[5])) +
   scale_fill_manual(values = c(my_pal[1], my_pal[5])) +
@@ -929,8 +937,8 @@ bpiF_plot = ggplot(bpiF_summary, aes(y = Mean_HSI, x = BPI_Fine, group = Species
 bpiF_plot
 
 # save plot
-ggsave(filename = paste0(temp_plots, "BPI_Fine_Curve.png"), bpiF_plot, width = 3.15,
-       height = 3.15, units = "in", dpi = 450)
+ggsave(filename = paste0(temp_plots, "BPI_Fine_Curve.png"), bpiF_plot, 
+       width = 3.15, height = 3.15, units = "in", dpi = 300)
 
 #### BPI BROAD ####
 # gray snapper
@@ -1017,8 +1025,9 @@ hs_bpiB_summary = hs_bpiB_df %>%
 
 bpiB_summary = rbind(lg_bpiB_summary, hs_bpiB_summary)
 
-bpiB_plot = ggplot(bpiB_summary, aes(y = Mean_HSI, x = BPI_Broad, group = Species, color = Species, fill = Species)) +
-  geom_point(aes(color = Species)) +
+bpiB_plot = ggplot(bpiB_summary, aes(y = Mean_HSI, x = BPI_Broad, group = Species,
+                                     color = Species, fill = Species)) +
+  geom_point(aes(color = Species), size = 0.5) +
   geom_line(aes(color = Species)) +
   scale_color_manual(values = c(my_pal[1], my_pal[5])) +
   scale_fill_manual(values = c(my_pal[1], my_pal[5])) +
@@ -1035,8 +1044,8 @@ bpiB_plot = ggplot(bpiB_summary, aes(y = Mean_HSI, x = BPI_Broad, group = Specie
 bpiB_plot
 
 # save plot
-ggsave(filename = paste0(temp_plots, "BPI_Broad_Curve.png"), bpiB_plot, width = 3.15,
-       height = 3.15, units = "in", dpi = 450)
+ggsave(filename = paste0(temp_plots, "BPI_Broad_Curve.png"), bpiB_plot, 
+       width = 3.15, height = 3.15, units = "in", dpi = 300)
 
 #### WINTER SALINITY ####
 # gray snapper
@@ -1123,8 +1132,9 @@ hs_wsal_summary = hs_wsal_df %>%
 
 wsal_summary = rbind(lg_wsal_summary, hs_wsal_summary)
 
-wsal_plot = ggplot(wsal_summary, aes(y = Mean_HSI, x = Win_Sal, group = Species, color = Species, fill = Species)) +
-  geom_point(aes(color = Species)) +
+wsal_plot = ggplot(wsal_summary, aes(y = Mean_HSI, x = Win_Sal, group = Species, 
+                                     color = Species, fill = Species)) +
+  geom_point(aes(color = Species), size = 0.5) +
   geom_line(aes(color = Species)) +
   scale_color_manual(values = c(my_pal[1], my_pal[5])) +
   scale_fill_manual(values = c(my_pal[1], my_pal[5])) +
@@ -1141,8 +1151,8 @@ wsal_plot = ggplot(wsal_summary, aes(y = Mean_HSI, x = Win_Sal, group = Species,
 wsal_plot
 
 # save plot
-ggsave(filename = paste0(temp_plots, "Win_Sal_Curve.png"), wsal_plot, width = 3.15,
-       height = 3.15, units = "in", dpi = 450)
+ggsave(filename = paste0(temp_plots, "Win_Sal_Curve.png"), wsal_plot, 
+       width = 3.15, height = 3.15, units = "in", dpi = 300)
 
 #### WINTER TEMPERATURE ####
 # gray snapper
@@ -1229,8 +1239,9 @@ hs_wtemp_summary = hs_wtemp_df %>%
 
 wtemp_summary = rbind(lg_wtemp_summary, hs_wtemp_summary)
 
-wtemp_plot = ggplot(wtemp_summary, aes(y = Mean_HSI, x = Win_Temp, group = Species, color = Species, fill = Species)) +
-  geom_point(aes(color = Species)) +
+wtemp_plot = ggplot(wtemp_summary, aes(y = Mean_HSI, x = Win_Temp, group = Species,
+                                       color = Species, fill = Species)) +
+  geom_point(aes(color = Species), size = 0.5) +
   geom_line(aes(color = Species)) +
   scale_color_manual(values = c(my_pal[1], my_pal[5])) +
   scale_fill_manual(values = c(my_pal[1], my_pal[5])) +
@@ -1247,8 +1258,8 @@ wtemp_plot = ggplot(wtemp_summary, aes(y = Mean_HSI, x = Win_Temp, group = Speci
 wtemp_plot
 
 # save plot
-ggsave(filename = paste0(temp_plots, "Win_Temp_Curve.png"), wtemp_plot, width = 3.15,
-       height = 3.15, units = "in", dpi = 450)
+ggsave(filename = paste0(temp_plots, "Win_Temp_Curve.png"), wtemp_plot, 
+       width = 3.15, height = 3.15, units = "in", dpi = 300)
 
 #### SUMMER SALINITY ####
 # gray snapper
@@ -1335,8 +1346,9 @@ hs_ssal_summary = hs_ssal_df %>%
 
 ssal_summary = rbind(lg_ssal_summary, hs_ssal_summary)
 
-ssal_plot = ggplot(ssal_summary, aes(y = Mean_HSI, x = Sum_Sal, group = Species, color = Species, fill = Species)) +
-  geom_point(aes(color = Species)) +
+ssal_plot = ggplot(ssal_summary, aes(y = Mean_HSI, x = Sum_Sal, group = Species, 
+                                     color = Species, fill = Species)) +
+  geom_point(aes(color = Species), size = 0.5) +
   geom_line(aes(color = Species)) +
   scale_color_manual(values = c(my_pal[1], my_pal[5])) +
   scale_fill_manual(values = c(my_pal[1], my_pal[5])) +
@@ -1352,8 +1364,8 @@ ssal_plot = ggplot(ssal_summary, aes(y = Mean_HSI, x = Sum_Sal, group = Species,
 ssal_plot
 
 # save plot
-ggsave(filename = paste0(temp_plots, "Sum_Sal_Curve.png"), ssal_plot, width = 3.15,
-       height = 3.15, units = "in", dpi = 450)
+ggsave(filename = paste0(temp_plots, "Sum_Sal_Curve.png"), ssal_plot, 
+       width = 3.15, height = 3.15, units = "in", dpi = 300)
 
 #### SUMMER TEMPERATURE ####
 # gray snapper
@@ -1440,8 +1452,9 @@ hs_stemp_summary = hs_stemp_df %>%
 
 stemp_summary = rbind(lg_stemp_summary, hs_stemp_summary)
 
-stemp_plot = ggplot(stemp_summary, aes(y = Mean_HSI, x = Sum_Temp, group = Species, color = Species, fill = Species)) +
-  geom_point(aes(color = Species)) +
+stemp_plot = ggplot(stemp_summary, aes(y = Mean_HSI, x = Sum_Temp, group = Species, 
+                                       color = Species, fill = Species)) +
+  geom_point(aes(color = Species), size = 0.5) +
   geom_line(aes(color = Species)) +
   scale_color_manual(values = c(my_pal[1], my_pal[5])) +
   scale_fill_manual(values = c(my_pal[1], my_pal[5])) +
@@ -1458,8 +1471,8 @@ stemp_plot = ggplot(stemp_summary, aes(y = Mean_HSI, x = Sum_Temp, group = Speci
 stemp_plot
 
 # save plot
-ggsave(filename = paste0(temp_plots, "Sum_Temp_Curve.png"), stemp_plot, width = 3.15,
-       height = 3.15, units = "in", dpi = 450)
+ggsave(filename = paste0(temp_plots, "Sum_Temp_Curve.png"), stemp_plot, 
+       width = 3.15, height = 3.15, units = "in", dpi = 300)
 
 #### VARIABLE CONTRIBUTIONS ####
 # find the average contribution of each variable to overall model fit
@@ -1611,6 +1624,44 @@ maxent_top5_plot
 # save plot
 ggsave(plot = maxent_top5_plot, filename = paste0(plots_wd, "Subadult_MaxEnt_Top5_Variables.png"), 
        height = 5, width = 7, units = "in", dpi = 300)
+
+#### RESPONSE CURVES - TOP 5 PREDICTORS ####
+# plot the response curves (or bar plot, for habitat) for the top five predictors
+row1 = plot_grid((hab_plot + theme(legend.text = element_text(size = 8),
+                                   legend.key.height = unit(0.5, 'cm'),
+                                   legend.key.width = unit(0.5, 'cm'),
+                                   axis.title = element_text(size = 10)) +
+                   labs(y = paste0("Relative habitat", "\n", "suitability")) +
+                    xlab("Benthic habitat type")),
+                 labels = "A")
+
+# use xlim for continuous variables to keep plots within the general range of 
+# values recorded for the region
+row2 = plot_grid((mg_plot + xlim(0, 16000) +
+                    theme(legend.position = "none",
+                          axis.title = element_text(size = 10)) +
+                    labs(y = paste0("Relative habitat", "\n", "suitability"))),
+                 (slope_plot + xlim(0, 25) +
+                    theme(legend.position = "none",
+                          axis.title = element_text(size = 10)) +
+                    labs(y = paste0("Relative habitat", "\n", "suitability"))),
+                 labels = c("B", "C"))
+
+row3 = plot_grid((depth_plot + xlim(0, 40) +
+                    theme(legend.position = "none",
+                          axis.title = element_text(size = 10)) +
+                    labs(y = paste0("Relative habitat", "\n", "suitability"))),
+                 (bpiB_plot + xlim(-1200, 1000) +
+                    theme(legend.position = "none",
+                          axis.title = element_text(size = 10)) +
+                    labs(y = paste0("Relative habitat", "\n", "suitability"))),
+                 labels = c("D", "E"))
+
+cowplot = plot_grid(row1, row2, row3, ncol = 1,
+                    rel_heights = c(2, 1, 1))
+
+ggsave(plot = cowplot, filename = paste0(plots_wd, "Subadult_Top5_Response_Curves.png"), 
+       height = 8, width = 6, units = "in", dpi = 300)
 
 #### LINEAR COEFFICIENTS ####
 library(devtools)
