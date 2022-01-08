@@ -2,11 +2,11 @@
 
 What spatial patterns and environmental conditions drive the distribution of suitable habitat for sub-adult bluestriped grunt and gray snapper? How do these factors influence the ontogenetic migrations of sub-adult bluestriped grunt and gray snapper across the mangrove-seagrass-reef seascape of the Florida Keys, USA? What does this mean for ecological connectivity and the spatial design of coastal conservation and habitat restoration efforts? We address these questions using species- and life stage-specific spatial models of habitat suitability constructed via two methods: penalized logistic regression and Maximum Entropy (MaxEnt).
 
-If you have questions, want to know more about this work, or would like to request access to the large spatial data files produced in this project, please contact Courtney Stuart (@cestuart@ualberta.ca).
+If you have questions, want to know more about this work, or would like to request access to the large spatial data files produced in this project, please contact Courtney Stuart (@cestuart@ualberta.ca or @courtney.e.stuart@gmail.com).
 
-This code accompanies the following paper, a DOI will be pasted in this repository once available:
+This code accompanies the following paper:
 
-Stuart, C.E.; Wedding, L.M.; Pittman, S.J.; Green, S.J. Habitat suitability modeling to inform seascape connectivity conservation and management. *Diversity (Invited Submission, In Prep)*. 
+Stuart, C.E.; Wedding, L.M.; Pittman, S.J.; Green, S.J. Habitat Suitability Modeling to Inform Seascape Connectivity Conservation and Management. Diversity 2021, 13, 465.  [https://doi.org/10.3390/d13100465](https://doi.org/10.3390/d13100465)
 
 You may use and borrow from this code base in accordance with the license below. 
 
