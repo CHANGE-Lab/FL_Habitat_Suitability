@@ -35,10 +35,11 @@ conflicted::conflict_prefer("filter", "dplyr")
 conflicted::conflict_prefer("xlim", "spex")
 
 # change where large temp rasters are saved
-rasterOptions(tmpdir = "Z:/Courtney/Stuart_MSc_Ch1/Temp/")
+rasterOptions(tmpdir = "Z:/Courtney/Stuart_MSc_Ch1/Temporary/")
 
-# save PROJ.4 string for standard projection (ESPG:26958 NAD 83/Florida East) 
-# and source LAT/LON data (EPSG:4326 WGS 84/World Geodetic System 1984)
+# save PROJ.4 string for standard projection (ESPG:26958 NAD 83/Florida East (meters)) 
+# and source data (EPSG:4326 WGS 84/World Geodetic System 1984 (decdeg)  or 
+# EPSG:2236 NAD83 / Florida East (ftUS))
 my_crs = CRS("+init=epsg:26958")
 gcs = CRS("+init=epsg:4326")
 us_ft = CRS("+init=epsg:2236")

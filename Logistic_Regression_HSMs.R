@@ -106,7 +106,7 @@ lg_glm = caret::train(PRES2 ~ ., lg_train, method = "glm", family = "binomial",
 
 # ROC, sensitivity, and specificity (*NOTE* caret uses absence as a reference 
 # class, so sensitivity is for absence & specificity is for presence here)
-lg_glm$levels # absence first, so that's specificity
+lg_glm$levels # absence first, so that's sensitivity
 lg_glm 
 
 # coefficients, deviance, and AIC, where coefficients characterize the relationship 
